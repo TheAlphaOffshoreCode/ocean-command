@@ -1,0 +1,16 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: { name: {{ include "ocean-command.name" . }} }
+spec:
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: {{ include "ocean-command.name" . }}-api, port: { name: http } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: {{ include "ocean-command.name" . }}-web, port: { name: http } } }
+{{- end }}

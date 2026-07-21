@@ -1,0 +1,22 @@
+image:
+  api: ocean-command-api:latest
+  web: ocean-command-web:latest
+  pullPolicy: IfNotPresent
+replicaCount: 2
+service:
+  apiPort: 4000
+  webPort: 3000
+ingress:
+  enabled: false
+  host: ocean-command.local
+secrets:
+  existingSecret: ocean-command-secrets
+  databaseUrlKey: DATABASE_URL
+  jwtSecretKey: JWT_SECRET
+  metricsTokenKey: METRICS_TOKEN
+config:
+  webOrigin: https://ocean-command.example.invalid
+  apiUrl: https://ocean-command.example.invalid/api
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 512Mi }

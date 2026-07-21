@@ -45,5 +45,8 @@ article span { color:var(--muted); font-size:.85rem; }
 .command-filters label { min-width:9rem; }
 .alert-summary { flex:1; padding:0; text-align:left; }
 .alert-summary h3 { color:var(--ink); }
+.offline-status { margin:.8rem 0 0!important; font-size:.78rem!important; }
+.offline-status.online { color:var(--accent)!important; }
+.offline-status.offline { color:#f6b35c!important; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media (max-width:760px) { .auth { grid-template-columns:1fr; gap:2rem; padding:2rem 1.25rem; } .brand h1 { font-size:4rem; } .command-center { padding:1.25rem; } .metrics { grid-template-columns:1fr; } .command-center header,.section-heading,.timeline-item { display:block; } .command-nav { justify-content:start; margin-top:1rem; } .timeline-actions { margin-top:1rem; justify-items:start; } .command-filters { margin-top:1rem; } .map { height:420px; } }

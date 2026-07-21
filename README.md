@@ -121,7 +121,8 @@ See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.
 - **Phase 6** — Alert lifecycle, assignment, audit history and real-time updates ✅
 - **Phase 7** — Deterministic rules, operational graph, impact and visualization ✅
 - **Phase 8** — Command center, map, timeline, alerts, events, filters and indicators ✅
-- **Phases 9–10** — Offline support and production hardening
+- **Phase 9** — Local cache, offline queue, safe synchronization and conflict indication ✅
+- **Phase 10** — Self-hosting, observability, backup/restore and hardening ✅
 
 The full implementation state is maintained in [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) and [ROADMAP.md](./ROADMAP.md). Contributions are welcome; read [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) first.
 

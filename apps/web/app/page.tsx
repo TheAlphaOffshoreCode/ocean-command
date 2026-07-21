@@ -1,6 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { OfflineStatus } from "./offline-status";
+import { enqueueMutation, flushOfflineMutations, loadCommandCenterSnapshot, saveCommandCenterSnapshot } from "./offline";
 import { OperationalMap, type OperationalFeature } from "./operational-map";
 import { OperationalTimeline, type TimelineActivity } from "./operational-timeline";
 import { WeatherPanel } from "./weather-panel";
@@ -16,21 +18,26 @@ export default function Home() {
   const [activities, setActivities] = useState<TimelineActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function loadCommandCenter() {
-    const me = await fetch(`${api}/api/v1/me`, { credentials: "include" });
-    if (!me.ok) { setUser(null); setLoading(false); return; }
-    const profile = await me.json();
-    setUser(profile.user);
-    const [map, timeline] = await Promise.all([
-      fetch(`${api}/api/v1/map/operational`, { credentials: "include" }),
-      fetch(`${api}/api/v1/activities/timeline`, { credentials: "include" })
-    ]);
-    if (map.ok) setFeatures((await map.json()).features);
-    if (timeline.ok) setActivities((await timeline.json()).data);
-    setLoading(false);
-  }
+  const loadCommandCenter = useCallback(async () => {
+    try {
+      if (navigator.onLine) await flushOfflineMutations();
+      const me = await fetch(`${api}/api/v1/me`, { credentials: "include" });
+      if (!me.ok) { setUser(null); return; }
+      const profile = await me.json();
+      const [map, timeline] = await Promise.all([fetch(`${api}/api/v1/map/operational`, { credentials: "include" }), fetch(`${api}/api/v1/activities/timeline`, { credentials: "include" })]);
+      if (!map.ok || !timeline.ok) throw new Error("Operational data is unavailable");
+      const nextFeatures = (await map.json()).features as OperationalFeature[];
+      const nextActivities = (await timeline.json()).data as TimelineActivity[];
+      setUser(profile.user); setFeatures(nextFeatures); setActivities(nextActivities); setMessage("");
+      await saveCommandCenterSnapshot({ user: profile.user, features: nextFeatures, activities: nextActivities, savedAt: new Date().toISOString() });
+    } catch {
+      const cached = await loadCommandCenterSnapshot();
+      if (cached) { setUser(cached.user as User); setFeatures(cached.features as OperationalFeature[]); setActivities(cached.activities as TimelineActivity[]); setMessage(`Offline view from ${new Date(cached.savedAt).toLocaleString()}. Changes will be queued until reconnection.`); }
+      else setMessage("Unable to connect. No local operational snapshot is available yet.");
+    } finally { setLoading(false); }
+  }, []);
 
-  useEffect(() => { void loadCommandCenter(); }, []);
+  useEffect(() => { void loadCommandCenter(); }, [loadCommandCenter]);
   useEffect(() => {
     if (!user) return;
     const stream = new EventSource(`${api}/api/v1/events`, { withCredentials: true });
@@ -49,13 +56,19 @@ export default function Home() {
   }
 
   async function signOut() { await fetch(`${api}/api/v1/auth/logout`, { method: "POST", credentials: "include" }); setUser(null); setFeatures([]); setActivities([]); setMessage(""); }
-  async function updateActivityStatus(id: string, status: string) { const response = await fetch(`${api}/api/v1/activities/${id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) }); if (!response.ok) { setMessage("Unable to update the activity status."); return; } await loadCommandCenter(); }
+  async function updateActivityStatus(id: string, status: string) {
+    const endpoint = `${api}/api/v1/activities/${id}`;
+    const queueChange = async () => { await enqueueMutation({ endpoint, method: "PATCH", body: { status } }); setActivities((current) => current.map((activity) => activity.id === id ? { ...activity, status } : activity)); setMessage("Offline change queued. It will be synchronized after reconnection."); };
+    if (!navigator.onLine) { await queueChange(); return; }
+    try { const response = await fetch(endpoint, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) }); if (!response.ok) { setMessage(response.status === 409 ? "The server reported a scheduling conflict. Review the activity before retrying." : "Unable to update the activity status."); return; } await loadCommandCenter(); }
+    catch { await queueChange(); }
+  }
 
   if (loading) return <main className="loading">Connecting to Ocean Command…</main>;
   if (user) {
     const asset = features.find((feature) => feature.properties.entityType === "ASSET");
     return <main className="command-center">
-      <header><div><p className="eyebrow">SIMULATED DEMONSTRATION DATA · COMMAND CENTER</p><h1>Ocean Command</h1><p>{user.organization_name} · {user.name}</p></div><nav className="command-nav" aria-label="Command Center navigation"><a className="quiet" href="/alerts">Alerts</a><a className="quiet" href="/graph">Operational graph</a><button className="quiet" onClick={signOut}>Sign out</button></nav></header>
+      <header><div><p className="eyebrow">SIMULATED DEMONSTRATION DATA · COMMAND CENTER</p><h1>Ocean Command</h1><p>{user.organization_name} · {user.name}</p><OfflineStatus onSynced={loadCommandCenter} /></div><nav className="command-nav" aria-label="Command Center navigation"><a className="quiet" href="/alerts">Alerts</a><a className="quiet" href="/graph">Operational graph</a><button className="quiet" onClick={signOut}>Sign out</button></nav></header>
       <section className="metrics"><article><strong>{features.filter((feature) => feature.properties.entityType === "ASSET").length}</strong><span>Offshore assets</span></article><article><strong>{features.filter((feature) => feature.properties.entityType === "VESSEL").length}</strong><span>Vessels reporting</span></article><article><strong>{activities.length}</strong><span>Scheduled activities</span></article></section>
       <WeatherPanel assetId={asset?.properties.id} assetName={asset?.properties.name} />
       <section className="map-section"><div className="section-heading"><div><p className="eyebrow">OPERATIONS MAP</p><h2>Current operating area</h2></div><button className="quiet" onClick={() => void loadCommandCenter()}>Refresh positions</button></div><OperationalMap features={features} /></section>

@@ -9,4 +9,5 @@
 - [x] Fase 6: alert lifecycle, assignment, audit history and real-time updates
 - [x] Fase 7: deterministic rules, operational graph, impact and visualization
 - [x] Fase 8: command center, map, timeline, alerts, events, filters and indicators
-- [ ] Fase 9–10: offline capability and production hardening
+- [x] Fase 9: local cache, offline queue, synchronization and conflict indication
+- [x] Fase 10: self-hosting, observability, backup/restore and hardening

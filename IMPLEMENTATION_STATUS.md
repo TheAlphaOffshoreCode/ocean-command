@@ -13,6 +13,8 @@ Updated: 2026-07-21
 - Fase 6: tenant-scoped alert lifecycle with prioritized listing, detail history, active-user assignment, acknowledgement, resolution and controlled reopening. Every lifecycle transition is persisted in `alert_events`, audited and emitted as `alert.updated` over the authenticated SSE stream.
 - Fase 7: PostgreSQL operational graph synchronizes assets, vessels, activities and alerts into tenant-scoped nodes and relations. It provides impact traversal, cycle prevention, a `/graph` visual route, and configurable deterministic weather rules that create explainable alerts.
 - Fase 8: the authenticated Command Center now connects map, activity timeline, meteocean conditions, operational graph and a dedicated `/alerts` console. The console provides status/severity filters, priority indicators, lifecycle controls, alert audit history and authenticated SSE refreshes for `alert.created` and `alert.updated` events.
+- Fase 9: the browser registers a minimal service worker for the local application shell, persists the authenticated Command Center snapshot in IndexedDB, and shows a clear online/offline state. Activity status changes made without connectivity are placed in a persistent local queue and replayed after reconnecting; server conflicts remain explicitly marked for human review rather than being overwritten.
+- Fase 10: separate API and web Dockerfiles, a Helm chart with readiness/liveness probes and external secret references, structured request logs, request/trace correlation headers, protected Prometheus metrics, and guarded PostgreSQL backup/restore scripts are available. The production runbook documents immutable images, TLS, secret rotation and recovery drills.
 
 ## Validation
 
@@ -27,4 +29,4 @@ Updated: 2026-07-21
 
 - Automated endpoint coverage is still limited; expand it with activity, scheduling, alert and stream scenarios in subsequent phases.
 - Production needs secret management, TLS termination, refresh-token/session revocation, full permission matrix and database row-level security defense in depth.
-- Next: Phase 9 offline capability and Phase 10 production hardening.
+- The initial ten-phase roadmap is complete. Future work should be prioritized from operational feedback and formal security review findings.

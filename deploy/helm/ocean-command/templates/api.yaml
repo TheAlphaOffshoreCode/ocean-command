@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ocean-command.name" . }}-api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: { app: ocean-command-api }
+  template:
+    metadata:
+      labels: { app: ocean-command-api }
+    spec:
+      containers:
+        - name: api
+          image: {{ .Values.image.api | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ containerPort: 4000 }]
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.existingSecret }}, key: {{ .Values.secrets.databaseUrlKey }} } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.existingSecret }}, key: {{ .Values.secrets.jwtSecretKey }} } }
+            - name: METRICS_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.existingSecret }}, key: {{ .Values.secrets.metricsTokenKey }} } }
+            - name: WEB_ORIGIN
+              value: {{ .Values.config.webOrigin | quote }}
+          readinessProbe: { httpGet: { path: /ready, port: 4000 }, initialDelaySeconds: 5 }
+          livenessProbe: { httpGet: { path: /health, port: 4000 }, initialDelaySeconds: 10 }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ocean-command.name" . }}-api
+spec:
+  selector: { app: ocean-command-api }
+  ports: [{ name: http, port: {{ .Values.service.apiPort }}, targetPort: 4000 }]
