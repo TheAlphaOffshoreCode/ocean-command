@@ -1,0 +1,17 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+type Node = { id: string; node_type: string; label: string };
+type Edge = { id: string; source_node_id: string; target_node_id: string; relation_type: string; critical: boolean };
+
+export default function OperationalGraphPage() {
+  const [nodes, setNodes] = useState<Node[]>([]); const [edges, setEdges] = useState<Edge[]>([]); const [impact, setImpact] = useState<Node[]>([]); const [message, setMessage] = useState("");
+  async function load() { const response = await fetch(`${api}/api/v1/graph`, { credentials: "include" }); if (!response.ok) { setMessage("Sign in through the Command Center first."); return; } const graph = await response.json(); setNodes(graph.nodes); setEdges(graph.edges); }
+  async function sync() { const response = await fetch(`${api}/api/v1/graph/sync`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" }); if (!response.ok) { setMessage("Unable to synchronize the graph."); return; } await load(); }
+  async function showImpact(id: string) { const response = await fetch(`${api}/api/v1/graph/impact/${id}`, { credentials: "include" }); if (response.ok) setImpact((await response.json()).affected); }
+  useEffect(() => { void load(); }, []);
+  const label = (id: string) => nodes.find((node) => node.id === id)?.label ?? id;
+  return <main className="command-center"><header><div><p className="eyebrow">OPERATIONAL GRAPH</p><h1>Dependencies</h1><p>Tenant-scoped relationships and deterministic operational impact.</p></div><button className="quiet" onClick={() => void sync()}>Synchronize graph</button></header><section className="metrics"><article><strong>{nodes.length}</strong><span>Operational nodes</span></article><article><strong>{edges.length}</strong><span>Relationships</span></article><article><strong>{impact.length}</strong><span>Impact path nodes</span></article></section><section className="timeline-section"><div className="section-heading"><div><p className="eyebrow">NODES</p><h2>Select a node to inspect impact</h2></div><button className="quiet" onClick={() => void load()}>Refresh</button></div><div className="timeline">{nodes.map((node) => <article className="timeline-item" key={node.id}><div><p className="timeline-time">{node.node_type}</p><h3>{node.label}</h3></div><button className="quiet" onClick={() => void showImpact(node.id)}>Show impact</button></article>)}</div></section><section className="timeline-section"><div className="section-heading"><div><p className="eyebrow">RELATIONSHIPS</p><h2>Operational paths</h2></div></div><div className="timeline">{edges.map((edge) => <article className="timeline-item" key={edge.id}><div><p className="timeline-time">{edge.relation_type}{edge.critical ? " · CRITICAL" : ""}</p><h3>{label(edge.source_node_id)} → {label(edge.target_node_id)}</h3></div></article>)}</div></section>{impact.length > 0 && <section className="timeline-section"><div className="section-heading"><div><p className="eyebrow">IMPACT</p><h2>Affected path</h2></div></div><div className="timeline">{impact.map((node) => <article className="timeline-item" key={node.id}><div><p className="timeline-time">{node.node_type}</p><h3>{node.label}</h3></div></article>)}</div></section>}{message && <p className="message">{message}</p>}<p className="safety-note">Graph output supports coordination and traceability; qualified personnel remain responsible for operational decisions.</p></main>;
+}
