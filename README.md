@@ -1,33 +1,123 @@
-# Ocean Command
+# 🌊 Ocean Command — one operational picture for offshore work
 
-Unified Offshore Operations Command Platform. Ocean Command creates one operational picture for offshore assets, people and work. This first release delivers the executable Fase 0–1 foundation: monorepo, local infrastructure, identity, organization isolation, RBAC and audit trail.
+> A local-first command platform that joins offshore assets, vessels, people and scheduled work into an auditable operational picture — without requiring paid external data providers.
 
-## Run locally
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-0d3641?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Next.js](https://img.shields.io/badge/Next.js-16-0d3641?logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![Fastify](https://img.shields.io/badge/Fastify-5-0d3641?logo=fastify&logoColor=white)](https://fastify.dev/) [![PostGIS](https://img.shields.io/badge/PostGIS-16-0d3641?logo=postgresql&logoColor=white)](https://postgis.net/) [![Status: Phase 3](https://img.shields.io/badge/status-phase_3_in_progress-ff7a1a)](./ROADMAP.md) [![License](https://img.shields.io/badge/license-Apache--2.0-0d3641)](./LICENSE)
+
+**Project status:** executable locally. Phases 0–2 are complete; operational scheduling is being expanded in Phase 3. No hosted deployment is claimed.
+
+---
+
+## The problem
+
+Offshore coordination is fragmented across vessel tracking, people-on-board lists, asset registers and schedules. A change in one system can affect another operation without a clear, attributable path back to the decision.
+
+Ocean Command starts with a narrower promise: create a reliable shared view of the operation, preserve tenant boundaries and record every authenticated change. It is not a safety authority and does not replace qualified human approval.
+
+## The solution
+
+Ocean Command is a modular TypeScript monorepo with a Next.js command center, a Fastify API and PostgreSQL/PostGIS as the operational source of truth. It currently provides:
+
+- Multi-tenant organizations, Argon2id credentials, short-lived `httpOnly` JWT sessions and backend-enforced roles.
+- Offshore assets, areas, equipment, vessels, position history, voyages, personnel, competencies and POB lifecycle.
+- Tenant-scoped GeoJSON operational map and a local MapLibre style with no mandatory external map provider.
+- Operational activities, dependency-cycle prevention, schedule-conflict detection and an interactive status timeline.
+- Immutable-style audit events for authenticated domain changes, Docker Compose infrastructure, CI and a simulated local seed.
+
+## What makes the data trustworthy enough to use
+
+| Common failure | Ocean Command behaviour |
+| --- | --- |
+| A tenant can accidentally see another organization | Every protected query is scoped by `organization_id`; ownership is checked again in domain routes. |
+| Demo data is confused with live operations | The seed marks its organization and records as `SIMULATED`; it is documented as development-only. |
+| A schedule silently forms a circular dependency | Recursive dependency validation rejects a new cycle with `409 Conflict`. |
+| A schedule overlap is invisible | The timeline flags active overlapping work windows on the same asset. |
+| A frontend authorization check is bypassed | Authorization is validated in the Fastify API; the dashboard never accesses PostgreSQL directly. |
+
+These are implemented controls, not a claim of operational certification. Production still requires secrets management, TLS termination, token revocation and a complete permission matrix.
+
+## Architecture at a glance
+
+```text
+Browser
+  │  Next.js Command Center (map + timeline)
+  ▼
+Fastify API ── identity, RBAC, audit, operational modules
+  │
+  ├── PostgreSQL + PostGIS ── tenant-scoped operational source of truth
+  ├── Redis ── local infrastructure for upcoming asynchronous work
+  └── MinIO ── local object-storage-compatible service
+
+Simulator / Worker ── replaceable local integration points
+```
+
+| Layer | Technology | Role |
+| --- | --- | --- |
+| Web | Next.js 16, React 19, MapLibre | Authenticated command center, local operational map and timeline |
+| API | Fastify 5, Zod | Validation, authentication, RBAC and tenant-scoped endpoints |
+| Data | PostgreSQL 16, PostGIS | Operational records, geospatial coordinates and audit trail |
+| Local infra | Docker Compose, Redis, MinIO | Reproducible self-hosted development environment |
+| Workspace | pnpm, Turborepo, TypeScript | Modular builds, checks and shared contracts |
+
+## Quick start
+
+Requires Node 22+, pnpm 11+ and Docker Compose.
 
 ```bash
 cp .env.example .env
-make setup
+pnpm install --frozen-lockfile
 make docker-up
-make db-migrate
-make dev
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
 ```
 
-Open `http://localhost:3000`, create an organization and use `GET http://localhost:4000/ready` to check the API. The provided data and endpoints are not a safety authority; offshore operational decisions require qualified human approval.
+Open `http://localhost:3000`. The simulated local account is:
 
-## Demonstration data
+```text
+email:    demo@ocean-command.local
+password: OceanCommandDemo!2026
+```
 
-Run `pnpm db:seed` after migrations to load an idempotent, explicitly simulated scenario. Sign in with `demo@ocean-command.local` and `OceanCommandDemo!2026`; use it only in a local development database. The Command Center renders its operational markers with a local MapLibre style, so the core demonstration does not rely on a paid or external map API.
+The credentials are intentionally limited to a local development database. Change or remove them before exposing any environment.
 
-## Verify
+## Verify the platform
 
 ```bash
-pnpm install --frozen-lockfile
-make lint
-make typecheck
-make test
-make build
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm db:migrate
+pnpm db:seed
 ```
 
-The workspace permits native build scripts only for the reviewed dependencies required by the platform (`argon2`, `esbuild`, and `sharp`).
+`GET http://localhost:4000/ready` verifies PostgreSQL readiness. The workspace permits native builds only for the reviewed dependencies `argon2`, `esbuild` and `sharp`.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md), [API.md](API.md), and [docs/adr](docs/adr).
+## API surface
+
+| Domain | Examples |
+| --- | --- |
+| Identity | register, login/logout, current user, tenant users and audit |
+| Assets | assets, areas and equipment lifecycle |
+| Marine | vessels, position history, voyages and operational GeoJSON |
+| Personnel | people, competencies, certifications and POB lifecycle |
+| Operations | activities, timeline and cycle-safe activity dependencies |
+
+See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions and [SECURITY.md](./SECURITY.md) for disclosure guidance.
+
+## Roadmap
+
+- **Phase 0** — Foundation, Docker Compose, health checks and CI ✅
+- **Phase 1** — Identity, multi-tenancy, RBAC and audit ✅
+- **Phase 2** — Assets, vessels, personnel, POB and operational map ✅
+- **Phase 3** — Activities, scheduling, dependencies and resource constraints — in progress
+- **Phase 4** — Server-Sent Events, position history and simulator updates
+- **Phases 5–7** — Weather, deterministic rules, alerts and operational graph
+- **Phases 8–10** — Offline support, production hardening and command-center expansion
+
+The full implementation state is maintained in [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) and [ROADMAP.md](./ROADMAP.md). Contributions are welcome; read [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) first.
+
+## License
+
+Licensed under [Apache-2.0](./LICENSE).
