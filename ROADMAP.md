@@ -8,4 +8,5 @@
 - [x] Fase 5: simulated weather, forecasts, operational windows and meteocean alerts
 - [x] Fase 6: alert lifecycle, assignment, audit history and real-time updates
 - [x] Fase 7: deterministic rules, operational graph, impact and visualization
-- [ ] Fase 8–10: command center, offline capability and production hardening
+- [x] Fase 8: command center, map, timeline, alerts, events, filters and indicators
+- [ ] Fase 9–10: offline capability and production hardening

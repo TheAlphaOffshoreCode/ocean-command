@@ -106,6 +106,7 @@ pnpm db:seed
 | Personnel | people, competencies, certifications and POB lifecycle |
 | Operations | activities, timeline and cycle-safe activity dependencies |
 | Meteocean | simulated observations and forecasts, impact queries and operational windows |
+| Command center | operational map, timeline, filtered alert console, lifecycle audit history and authenticated real-time events |
 
 See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions and [SECURITY.md](./SECURITY.md) for disclosure guidance.
 
@@ -119,7 +120,8 @@ See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.
 - **Phase 5** — Simulated weather, forecasts, operational windows and meteocean alerts ✅
 - **Phase 6** — Alert lifecycle, assignment, audit history and real-time updates ✅
 - **Phase 7** — Deterministic rules, operational graph, impact and visualization ✅
-- **Phases 8–10** — Offline support, production hardening and command-center expansion
+- **Phase 8** — Command center, map, timeline, alerts, events, filters and indicators ✅
+- **Phases 9–10** — Offline support and production hardening
 
 The full implementation state is maintained in [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) and [ROADMAP.md](./ROADMAP.md). Contributions are welcome; read [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) first.
 
