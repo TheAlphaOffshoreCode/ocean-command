@@ -10,6 +10,7 @@ import { audit } from "./audit.js";
 import { requireAuth, requireRole, hashPassword, verifyPassword } from "./auth.js";
 import { config } from "./config.js";
 import { db } from "./database.js";
+import { subscribe } from "./events.js";
 import { registerPhaseTwoRoutes } from "./phase2.js";
 import { registerPhaseThreeRoutes } from "./phase3.js";
 
@@ -37,6 +38,7 @@ export function buildApp() {
 
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/ready", async (_request, reply) => { try { await db().query("SELECT 1"); return { status: "ready", database: "available" }; } catch { return reply.code(503).send({ status: "not_ready", database: "unavailable" }); } });
+  app.get("/api/v1/events", async (request, reply) => { const claims = await requireAuth(request); reply.hijack(); reply.raw.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive" }); const send = (event: { id: string; type: string; payload: object; occurredAt: string }) => reply.raw.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`); reply.raw.write(": connected\n\n"); const heartbeat = setInterval(() => reply.raw.write(": heartbeat\n\n"), 25000); const unsubscribe = subscribe(claims.organizationId, send); request.raw.on("close", () => { clearInterval(heartbeat); unsubscribe(); }); });
 
   app.post("/api/v1/auth/register", { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } }, async (request, reply) => {
     const body = registerSchema.parse(request.body); const organizationId = randomUUID(); const userId = randomUUID(); const client = await db().connect();
