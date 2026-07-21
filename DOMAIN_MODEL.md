@@ -1,3 +1,3 @@
 # Domain model
 
-Current aggregates: Organization, User, Role, Permission and AuditLog. `Organization` is the tenant boundary. Every User and Role belongs to exactly one organization; AuditLog records actor, tenant, action, target and request correlation.
+Current aggregates: Organization, User, Role, Permission, OffshoreAsset, AssetArea, Equipment and AuditLog. `Organization` is the tenant boundary. Every User, Role and OffshoreAsset belongs to exactly one organization; an asset code is unique within that tenant. AssetArea forms a hierarchy within one asset. Equipment belongs to one asset and can optionally identify its area. Areas cannot be deleted while children or equipment reference them. OffshoreAsset captures the operational unit type, lifecycle status, geographic position, timezone and optional operator metadata. AuditLog records actor, tenant, action, target and request correlation.
