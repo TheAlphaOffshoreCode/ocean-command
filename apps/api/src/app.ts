@@ -11,6 +11,7 @@ import { requireAuth, requireRole, hashPassword, verifyPassword } from "./auth.j
 import { config } from "./config.js";
 import { db } from "./database.js";
 import { registerPhaseTwoRoutes } from "./phase2.js";
+import { registerPhaseThreeRoutes } from "./phase3.js";
 
 const registerSchema = z.object({ organizationName: z.string().min(2).max(120), organizationSlug: z.string().regex(/^[a-z0-9-]{2,64}$/), name: z.string().min(2).max(120), email: z.string().email(), password: z.string().min(12).max(128) });
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
@@ -32,6 +33,7 @@ export function buildApp() {
   app.register(jwt, { secret: config.JWT_SECRET, cookie: { cookieName: "ocean_session", signed: false } });
   app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   registerPhaseTwoRoutes(app);
+  registerPhaseThreeRoutes(app);
 
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/ready", async (_request, reply) => { try { await db().query("SELECT 1"); return { status: "ready", database: "available" }; } catch { return reply.code(503).send({ status: "not_ready", database: "unavailable" }); } });
