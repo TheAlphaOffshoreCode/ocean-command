@@ -14,4 +14,16 @@ make dev
 
 Open `http://localhost:3000`, create an organization and use `GET http://localhost:4000/ready` to check the API. The provided data and endpoints are not a safety authority; offshore operational decisions require qualified human approval.
 
+## Verify
+
+```bash
+pnpm install --frozen-lockfile
+make lint
+make typecheck
+make test
+make build
+```
+
+The workspace permits native build scripts only for the reviewed dependencies required by the platform (`argon2`, `esbuild`, and `sharp`).
+
 See [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md), [API.md](API.md), and [docs/adr](docs/adr).

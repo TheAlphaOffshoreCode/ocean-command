@@ -1,3 +1,9 @@
 packages:
   - apps/*
   - packages/*
+allowBuilds:
+  # Native authentication binding used by the API.
+  argon2: true
+  # Bundlers required by Vitest and Next.js.
+  esbuild: true
+  sharp: true

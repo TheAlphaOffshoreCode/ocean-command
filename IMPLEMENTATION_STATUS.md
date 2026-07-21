@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-07-20
+Updated: 2026-07-21
 
 ## Completed
 
@@ -9,12 +9,15 @@ Updated: 2026-07-20
 
 ## Validation
 
-- `docker compose config --quiet`: passed.
+- `pnpm install` and `pnpm install --frozen-lockfile`: passed. The workspace lockfile is committed and permits native scripts only for `argon2`, `esbuild`, and `sharp`.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`: passed. The API suite has two passing tests; packages without suites use Vitest's explicit `--passWithNoTests` option until coverage is added.
+- `docker compose config --quiet`: passed. PostgreSQL/PostGIS, Redis and MinIO started healthy.
+- `pnpm db:migrate`: passed and is idempotent; a second execution does not reapply `001_identity.sql`.
+- `GET /ready` against the running PostgreSQL database returned `200` with `database: available`.
 - `git diff --check`: passed.
-- Dependency installation, typecheck, tests, migration and build: blocked. `pnpm install` reaches the workspace but repeatedly stalls while fetching the Windows `@next/swc-win32-x64-msvc` binary. The npm registry itself responds to `npm ping`; no lockfile was produced. Do not treat the application build as validated until this fetch completes.
 
 ## Risks and next work
 
 - Endpoint coverage is intentionally limited to identity; assets and operations are Fase 2+.
 - Production needs secret management, TLS termination, refresh-token/session revocation, full permission matrix and database row-level security defense in depth.
-- Next: complete `pnpm install`, then run `make docker-up`, `make db-migrate`, `make test`, `make typecheck` and `make build` before adding the asset/vessel/personnel modules.
+- Next: Fase 2 — add tenant-scoped assets, vessels and personnel modules with API coverage, audit events and user-facing workflows.
