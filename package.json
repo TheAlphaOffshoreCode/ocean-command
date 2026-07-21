@@ -1,0 +1,18 @@
+{
+  "name": "ocean-command",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": { "node": ">=22.0.0", "pnpm": ">=11.0.0" },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:e2e": "pnpm --filter @ocean/api test:e2e",
+    "db:migrate": "pnpm --filter @ocean/api db:migrate",
+    "db:seed": "pnpm --filter @ocean/api db:seed"
+  },
+  "devDependencies": { "@types/node": "^22.15.3", "turbo": "^2.5.3", "typescript": "^5.8.3" }
+}
