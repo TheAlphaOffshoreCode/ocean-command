@@ -2,9 +2,9 @@
 
 > A local-first command platform that joins offshore assets, vessels, people and scheduled work into an auditable operational picture — without requiring paid external data providers.
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-0d3641?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Next.js](https://img.shields.io/badge/Next.js-16-0d3641?logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![Fastify](https://img.shields.io/badge/Fastify-5-0d3641?logo=fastify&logoColor=white)](https://fastify.dev/) [![PostGIS](https://img.shields.io/badge/PostGIS-16-0d3641?logo=postgresql&logoColor=white)](https://postgis.net/) [![Status: Phase 3](https://img.shields.io/badge/status-phase_3_in_progress-ff7a1a)](./ROADMAP.md) [![License](https://img.shields.io/badge/license-Apache--2.0-0d3641)](./LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-0d3641?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Next.js](https://img.shields.io/badge/Next.js-16-0d3641?logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![Fastify](https://img.shields.io/badge/Fastify-5-0d3641?logo=fastify&logoColor=white)](https://fastify.dev/) [![PostGIS](https://img.shields.io/badge/PostGIS-16-0d3641?logo=postgresql&logoColor=white)](https://postgis.net/) [![Status: Phase 5 complete](https://img.shields.io/badge/status-phase_5_complete-27b3a9)](./ROADMAP.md) [![License](https://img.shields.io/badge/license-Apache--2.0-0d3641)](./LICENSE)
 
-**Project status:** executable locally. Phases 0–2 are complete; operational scheduling is being expanded in Phase 3. No hosted deployment is claimed.
+**Project status:** executable locally. Phase 5 simulated meteocean windows and alerts are complete; no hosted deployment or live weather provider is claimed.
 
 ---
 
@@ -22,6 +22,7 @@ Ocean Command is a modular TypeScript monorepo with a Next.js command center, a 
 - Offshore assets, areas, equipment, vessels, position history, voyages, personnel, competencies and POB lifecycle.
 - Tenant-scoped GeoJSON operational map and a local MapLibre style with no mandatory external map provider.
 - Operational activities, dependency-cycle prevention, schedule-conflict detection and an interactive status timeline.
+- Simulated weather observations, six-hour forecasts, meteocean impact review and operational windows. Conditions beyond 16 kn wind or 2.5 m waves generate a high simulated alert and identify upcoming affected activities.
 - Immutable-style audit events for authenticated domain changes, Docker Compose infrastructure, CI and a simulated local seed.
 
 ## What makes the data trustworthy enough to use
@@ -32,6 +33,7 @@ Ocean Command is a modular TypeScript monorepo with a Next.js command center, a 
 | Demo data is confused with live operations | The seed marks its organization and records as `SIMULATED`; it is documented as development-only. |
 | A schedule silently forms a circular dependency | Recursive dependency validation rejects a new cycle with `409 Conflict`. |
 | A schedule overlap is invisible | The timeline flags active overlapping work windows on the same asset. |
+| A weather restriction is detached from work planning | The meteocean impact endpoint and dashboard surface upcoming activities on the affected asset, and alerts carry their IDs. |
 | A frontend authorization check is bypassed | Authorization is validated in the Fastify API; the dashboard never accesses PostgreSQL directly. |
 
 These are implemented controls, not a claim of operational certification. Production still requires secrets management, TLS termination, token revocation and a complete permission matrix.
@@ -103,6 +105,7 @@ pnpm db:seed
 | Marine | vessels, position history, voyages and operational GeoJSON |
 | Personnel | people, competencies, certifications and POB lifecycle |
 | Operations | activities, timeline and cycle-safe activity dependencies |
+| Meteocean | simulated observations and forecasts, impact queries and operational windows |
 
 See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions and [SECURITY.md](./SECURITY.md) for disclosure guidance.
 
@@ -113,7 +116,8 @@ See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.
 - **Phase 2** — Assets, vessels, personnel, POB and operational map ✅
 - **Phase 3** — Activities, scheduling, dependencies and resource constraints — in progress
 - **Phase 4** — Server-Sent Events, position history and simulator updates
-- **Phases 5–7** — Weather, deterministic rules, alerts and operational graph
+- **Phase 5** — Simulated weather, forecasts, operational windows and meteocean alerts ✅
+- **Phases 6–7** — Alert lifecycle, deterministic rules and operational graph
 - **Phases 8–10** — Offline support, production hardening and command-center expansion
 
 The full implementation state is maintained in [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) and [ROADMAP.md](./ROADMAP.md). Contributions are welcome; read [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) first.

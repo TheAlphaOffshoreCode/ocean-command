@@ -5,5 +5,6 @@
 - [x] Fase 2: assets, vessels and personnel
 - [ ] Fase 3: activities and scheduling (in progress)
 - [ ] Fase 4: map and real time
-- [ ] Fase 5–7: weather, rules and operational graph
+- [x] Fase 5: simulated weather, forecasts, operational windows and meteocean alerts
+- [ ] Fase 6–7: alert lifecycle, deterministic rules and operational graph
 - [ ] Fase 8–10: command center, offline capability and production hardening
