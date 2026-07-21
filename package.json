@@ -14,5 +14,5 @@
     "db:migrate": "pnpm --filter @ocean/api db:migrate",
     "db:seed": "pnpm --filter @ocean/api db:seed"
   },
-  "devDependencies": { "@types/node": "^22.15.3", "turbo": "^2.5.3", "typescript": "^5.8.3" }
+  "devDependencies": { "@types/node": "^22.15.3", "turbo": "^2.5.3", "typescript": "^7.0.2" }
 }
