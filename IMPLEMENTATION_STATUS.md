@@ -10,6 +10,7 @@ Updated: 2026-07-21
 - Fase 3: tenant-scoped activities with status, priority, risk, schedule, audit trail, dependency-cycle prevention, timeline conflicts and resource-conflict queries. Invalid rescheduling is rejected before persistence.
 - Fase 4: tenant-scoped operational map, authenticated organization-scoped SSE with heartbeat and cleanup, and simulated vessel position ticks. Activity creation, updates and deletion, manual and simulated vessel positions, and meteocean updates now publish domain events consumed by the Command Center.
 - Fase 5: tenant-scoped simulated observations and six-hour forecasts, configurable operational windows, a Command Center meteocean panel and impact queries for scheduled activities. Simulated conditions above 16 kn wind or 2.5 m waves create a high operational alert with the affected activity IDs.
+- Fase 6: tenant-scoped alert lifecycle with prioritized listing, detail history, active-user assignment, acknowledgement, resolution and controlled reopening. Every lifecycle transition is persisted in `alert_events`, audited and emitted as `alert.updated` over the authenticated SSE stream.
 
 ## Validation
 
@@ -24,4 +25,4 @@ Updated: 2026-07-21
 
 - Automated endpoint coverage is still limited; expand it with activity, scheduling, alert and stream scenarios in subsequent phases.
 - Production needs secret management, TLS termination, refresh-token/session revocation, full permission matrix and database row-level security defense in depth.
-- Next: complete the alert lifecycle and deterministic operational rules in Phase 6 while extending the operational graph.
+- Next: add deterministic cross-domain rules and the operational graph in Phase 7.

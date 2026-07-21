@@ -6,5 +6,6 @@
 - [x] Fase 3: activities, scheduling, dependencies and resource conflicts
 - [x] Fase 4: operational map, authenticated SSE and vessel simulator
 - [x] Fase 5: simulated weather, forecasts, operational windows and meteocean alerts
-- [ ] Fase 6–7: alert lifecycle, deterministic rules and operational graph
+- [x] Fase 6: alert lifecycle, assignment, audit history and real-time updates
+- [ ] Fase 7: deterministic rules and operational graph
 - [ ] Fase 8–10: command center, offline capability and production hardening
