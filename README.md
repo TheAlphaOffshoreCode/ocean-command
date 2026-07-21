@@ -118,7 +118,7 @@ See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.
 - **Phase 4** — Operational map, Server-Sent Events, position history and simulator updates ✅
 - **Phase 5** — Simulated weather, forecasts, operational windows and meteocean alerts ✅
 - **Phase 6** — Alert lifecycle, assignment, audit history and real-time updates ✅
-- **Phase 7** — Deterministic rules and operational graph
+- **Phase 7** — Deterministic rules, operational graph, impact and visualization ✅
 - **Phases 8–10** — Offline support, production hardening and command-center expansion
 
 The full implementation state is maintained in [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) and [ROADMAP.md](./ROADMAP.md). Contributions are welcome; read [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) first.

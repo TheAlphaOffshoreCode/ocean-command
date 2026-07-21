@@ -11,6 +11,7 @@ Updated: 2026-07-21
 - Fase 4: tenant-scoped operational map, authenticated organization-scoped SSE with heartbeat and cleanup, and simulated vessel position ticks. Activity creation, updates and deletion, manual and simulated vessel positions, and meteocean updates now publish domain events consumed by the Command Center.
 - Fase 5: tenant-scoped simulated observations and six-hour forecasts, configurable operational windows, a Command Center meteocean panel and impact queries for scheduled activities. Simulated conditions above 16 kn wind or 2.5 m waves create a high operational alert with the affected activity IDs.
 - Fase 6: tenant-scoped alert lifecycle with prioritized listing, detail history, active-user assignment, acknowledgement, resolution and controlled reopening. Every lifecycle transition is persisted in `alert_events`, audited and emitted as `alert.updated` over the authenticated SSE stream.
+- Fase 7: PostgreSQL operational graph synchronizes assets, vessels, activities and alerts into tenant-scoped nodes and relations. It provides impact traversal, cycle prevention, a `/graph` visual route, and configurable deterministic weather rules that create explainable alerts.
 
 ## Validation
 
