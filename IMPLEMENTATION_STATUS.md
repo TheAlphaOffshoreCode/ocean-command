@@ -6,7 +6,7 @@ Updated: 2026-07-21
 
 - Fase 0: pnpm/Turborepo workspace, Next.js web, Fastify API, Compose services (PostGIS, Redis, MinIO), health/readiness, environment template, Make targets, basic CI and core documentation.
 - Fase 1: organization registration, Argon2id credentials, JWT cookie session, administrator/operations/viewer roles, tenant-scoped user administration and immutable-style audit records.
-- Fase 2 (in progress): tenant-scoped CRUD for offshore assets, hierarchical asset areas and equipment, plus vessel CRUD/positions and personnel/competency/POB creation with audit records. Voyages, certification assignment, disembark, complete personnel CRUD, seed data and the initial map remain pending.
+- Fase 2: tenant-scoped lifecycle for offshore assets, areas, equipment, vessels and positions, voyages, people, competencies, certifications and POB. The local seed creates an explicitly simulated demo organization, and the authenticated web Command Center renders the tenant-scoped operational map with MapLibre.
 
 ## Validation
 
@@ -19,6 +19,6 @@ Updated: 2026-07-21
 
 ## Risks and next work
 
-- Endpoint coverage is intentionally limited to identity; assets and operations are Fase 2+.
+- Automated endpoint coverage is still limited; expand it with activities, scheduling and alert scenarios in Phase 3.
 - Production needs secret management, TLS termination, refresh-token/session revocation, full permission matrix and database row-level security defense in depth.
-- Next: Fase 2 — add tenant-scoped assets, vessels and personnel modules with API coverage, audit events and user-facing workflows.
+- Next: Phase 3 — activities, scheduling, initial operational timeline and real-time events.

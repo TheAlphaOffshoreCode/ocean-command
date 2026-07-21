@@ -14,6 +14,10 @@ make dev
 
 Open `http://localhost:3000`, create an organization and use `GET http://localhost:4000/ready` to check the API. The provided data and endpoints are not a safety authority; offshore operational decisions require qualified human approval.
 
+## Demonstration data
+
+Run `pnpm db:seed` after migrations to load an idempotent, explicitly simulated scenario. Sign in with `demo@ocean-command.local` and `OceanCommandDemo!2026`; use it only in a local development database. The Command Center renders its operational markers with a local MapLibre style, so the core demonstration does not rely on a paid or external map API.
+
 ## Verify
 
 ```bash
