@@ -1,0 +1,10 @@
+"use client";
+
+export type TimelineActivity = { id: string; title: string; type: string; priority: string; status: string; risk_level: string; planned_start: string; planned_end: string; progress: number; asset_name: string; has_schedule_conflict: boolean };
+
+function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value)); }
+
+export function OperationalTimeline({ activities, onStatusChange }: { activities: TimelineActivity[]; onStatusChange: (id: string, status: string) => void }) {
+  if (!activities.length) return <p className="empty-state">No activities are scheduled for this organization.</p>;
+  return <div className="timeline" aria-label="Operational schedule">{activities.map((activity) => <article className={activity.has_schedule_conflict ? "timeline-item conflict" : "timeline-item"} key={activity.id}><div><p className="timeline-time">{formatDate(activity.planned_start)} — {formatDate(activity.planned_end)}</p><h3>{activity.title}</h3><p>{activity.asset_name} · {activity.type} · {activity.priority} priority</p>{activity.has_schedule_conflict && <p className="warning">Schedule conflict on this asset</p>}</div><div className="timeline-actions"><span className={`status ${activity.status.toLowerCase()}`}>{activity.status.replaceAll("_", " ")}</span><label className="sr-only" htmlFor={`status-${activity.id}`}>Status for {activity.title}</label><select id={`status-${activity.id}`} value={activity.status} onChange={(event) => onStatusChange(activity.id, event.target.value)}><option value="DRAFT">Draft</option><option value="PLANNED">Planned</option><option value="READY">Ready</option><option value="IN_PROGRESS">In progress</option><option value="PAUSED">Paused</option><option value="BLOCKED">Blocked</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option><option value="DELAYED">Delayed</option></select></div></article>)}</div>;
+}
