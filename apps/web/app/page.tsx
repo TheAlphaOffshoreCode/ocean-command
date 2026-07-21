@@ -28,6 +28,7 @@ export default function Home() {
   }
 
   useEffect(() => { void loadCommandCenter(); }, []);
+  useEffect(() => { if (!user) return; const stream = new EventSource(`${api}/api/v1/events`, { withCredentials: true }); const refresh = () => void loadCommandCenter(); stream.addEventListener("activity.updated", refresh); stream.addEventListener("vessel.position_updated", refresh); return () => stream.close(); }, [user]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
