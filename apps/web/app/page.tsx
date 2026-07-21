@@ -29,7 +29,7 @@ export default function Home() {
   }
 
   useEffect(() => { void loadCommandCenter(); }, []);
-  useEffect(() => { if (!user) return; const stream = new EventSource(`${api}/api/v1/events`, { withCredentials: true }); const refresh = () => void loadCommandCenter(); stream.addEventListener("activity.updated", refresh); stream.addEventListener("vessel.position_updated", refresh); return () => stream.close(); }, [user]);
+  useEffect(() => { if (!user) return; const stream = new EventSource(`${api}/api/v1/events`, { withCredentials: true }); const refresh = () => void loadCommandCenter(); stream.addEventListener("activity.created", refresh); stream.addEventListener("activity.updated", refresh); stream.addEventListener("activity.deleted", refresh); stream.addEventListener("vessel.position_updated", refresh); stream.addEventListener("weather.observed", refresh); stream.addEventListener("weather.forecast_updated", refresh); return () => stream.close(); }, [user]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

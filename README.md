@@ -114,8 +114,8 @@ See [API.md](./API.md) for the current routes, [ARCHITECTURE.md](./ARCHITECTURE.
 - **Phase 0** — Foundation, Docker Compose, health checks and CI ✅
 - **Phase 1** — Identity, multi-tenancy, RBAC and audit ✅
 - **Phase 2** — Assets, vessels, personnel, POB and operational map ✅
-- **Phase 3** — Activities, scheduling, dependencies and resource constraints — in progress
-- **Phase 4** — Server-Sent Events, position history and simulator updates
+- **Phase 3** — Activities, scheduling, dependencies and resource constraints ✅
+- **Phase 4** — Operational map, Server-Sent Events, position history and simulator updates ✅
 - **Phase 5** — Simulated weather, forecasts, operational windows and meteocean alerts ✅
 - **Phases 6–7** — Alert lifecycle, deterministic rules and operational graph
 - **Phases 8–10** — Offline support, production hardening and command-center expansion
