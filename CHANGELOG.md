@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added the first Fase 2 slice: tenant-scoped offshore asset CRUD, migration and audit events.
+
 ## 0.1.1 - 2026-07-21
 
 - Added the reproducible `pnpm-lock.yaml` and explicit approvals for required native dependency builds.
