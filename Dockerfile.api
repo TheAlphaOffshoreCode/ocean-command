@@ -1,6 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
+ENV PNPM_FETCH_RETRIES=8 PNPM_FETCH_RETRY_MINTIMEOUT=10000 PNPM_FETCH_RETRY_MAXTIMEOUT=120000 PNPM_NETWORK_CONCURRENCY=4
 COPY . .
 RUN pnpm install --frozen-lockfile && pnpm --filter @ocean/api build
 
