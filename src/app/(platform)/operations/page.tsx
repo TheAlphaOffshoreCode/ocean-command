@@ -18,6 +18,8 @@ import { TERMINAL_STATUSES } from '@/lib/domain/operation/transitions'
 
 export const metadata: Metadata = { title: 'Operations' }
 
+const SCHEDULE_PAGE_SIZE = 100
+
 export default async function OperationsPage({
   searchParams,
 }: {
@@ -40,8 +42,12 @@ export default async function OperationsPage({
     direction: params.direction,
   })
 
+  // The timeline needs the whole window and the list is short, so this view asks
+  // for one large page instead of pretending to paginate: honouring ?page=2 while
+  // fetching 100 rows would silently show an empty screen. Real pagination arrives
+  // with the analytics lists in phase 8.
   const [page, activity] = await Promise.all([
-    listOperations(ctx, { ...filters, pageSize: 100 }),
+    listOperations(ctx, { ...filters, page: 1, pageSize: SCHEDULE_PAGE_SIZE }),
     getActivityFeed(ctx, 12),
   ])
 

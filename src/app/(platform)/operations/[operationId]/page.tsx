@@ -96,7 +96,11 @@ export default async function OperationDetailPage({
           <Panel>
             <PanelHeader
               title="History"
-              description={`${operation.events.length} event${operation.events.length === 1 ? '' : 's'}`}
+              description={
+                operation.eventsTotal > operation.events.length
+                  ? `Showing the most recent ${operation.events.length} of ${operation.eventsTotal} events`
+                  : `${operation.eventsTotal} event${operation.eventsTotal === 1 ? '' : 's'}`
+              }
             />
             <PanelBody className="p-0">
               {operation.events.length === 0 ? (

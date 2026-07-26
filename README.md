@@ -42,7 +42,7 @@ light, because three of the four inputs to that score do not exist before phase 
 ```text
 lint       ✓ no errors
 typecheck  ✓ no errors
-test       ✓ 118 passed (13 files)
+test       ✓ 119 passed (13 files)
 build      ✓ 11 routes
 ```
 

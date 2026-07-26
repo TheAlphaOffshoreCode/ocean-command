@@ -38,9 +38,13 @@ export type OperationDetail = {
   location: { id: string; name: string; basin: string | null } | null
   createdAt: Date
   events: OperationEventEntry[]
+  /** Total in the table, so a truncated list can say so instead of undercounting. */
+  eventsTotal: number
   /** Where this operation can go next, from the transition table. */
   nextStatuses: OperationStatus[]
 }
+
+const EVENT_PAGE_SIZE = 100
 
 /**
  * `findFirst`, not `findUnique`: the tenant filter has to be part of the query.
@@ -51,16 +55,20 @@ export async function getOperation(
   ctx: TenantContext,
   operationId: string,
 ): Promise<OperationDetail | null> {
-  const operation = await forTenant(ctx).operation.findFirst({
+  const db = forTenant(ctx)
+
+  const operation = await db.operation.findFirst({
     where: { id: operationId },
     include: {
       vessel: { select: { id: true, name: true, status: true } },
       location: { select: { id: true, name: true, basin: true } },
-      events: { orderBy: { occurredAt: 'desc' }, take: 100 },
+      events: { orderBy: { occurredAt: 'desc' }, take: EVENT_PAGE_SIZE },
     },
   })
 
   if (!operation) return null
+
+  const eventsTotal = await db.operationEvent.count({ where: { operationId } })
 
   return {
     id: operation.id,
@@ -87,6 +95,7 @@ export async function getOperation(
       actorId: event.actorId,
       occurredAt: event.occurredAt,
     })),
+    eventsTotal,
     // Computed from the same table the server enforces, so the UI cannot offer a
     // button the action will refuse.
     nextStatuses: [...allowedTransitions(operation.status)],

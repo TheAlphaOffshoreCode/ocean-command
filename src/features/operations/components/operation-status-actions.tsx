@@ -28,6 +28,9 @@ export function OperationStatusActions({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [pendingTarget, setPendingTarget] = useState<OperationStatus | null>(null)
+  /** Set when a move needs a reason before it can be sent. */
+  const [awaitingReason, setAwaitingReason] = useState<OperationStatus | null>(null)
+  const [reason, setReason] = useState('')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -45,19 +48,10 @@ export function OperationStatusActions({
     )
   }
 
-  function move(to: OperationStatus) {
+  function send(to: OperationStatus, note?: string) {
     setError(null)
-
-    // Suspending without a reason leaves the history unusable next week, so the
-    // note is asked for here rather than rejected by the server.
-    let note: string | undefined
-    if (to === OperationStatus.SUSPENDED) {
-      const reason = window.prompt('Why is this operation being suspended?')?.trim()
-      if (!reason) return
-      note = reason
-    }
-
     setPendingTarget(to)
+
     startTransition(async () => {
       const result = await transitionOperation({ id: operationId, to, note })
       setPendingTarget(null)
@@ -66,8 +60,83 @@ export function OperationStatusActions({
         setError(result.error)
         return
       }
+
+      setAwaitingReason(null)
+      setReason('')
       router.refresh()
     })
+  }
+
+  function onPick(to: OperationStatus) {
+    // Suspending and cancelling change the shape of the record enough that the
+    // history needs to say why. Asked for inline rather than with window.prompt:
+    // a browser dialog cannot be styled, read by the page, or filled by anyone
+    // using a keyboard-driven workflow comfortably.
+    if (to === OperationStatus.SUSPENDED || to === OperationStatus.CANCELLED) {
+      setError(null)
+      setAwaitingReason(to)
+      return
+    }
+    send(to)
+  }
+
+  if (awaitingReason) {
+    const required = awaitingReason === OperationStatus.SUSPENDED
+
+    return (
+      <form
+        className="space-y-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const trimmed = reason.trim()
+          if (required && !trimmed) {
+            setError('A reason is required to suspend an operation.')
+            return
+          }
+          send(awaitingReason, trimmed || undefined)
+        }}
+      >
+        <label htmlFor="transition-reason" className="text-ink-muted block text-xs">
+          Why is this operation being {label(awaitingReason).toLowerCase()}?
+          {required ? null : <span className="text-ink-faint"> (optional)</span>}
+        </label>
+        <textarea
+          id="transition-reason"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          rows={3}
+          maxLength={500}
+          autoFocus
+          className="border-line bg-surface text-ink focus:border-accent w-full rounded border px-2 py-1.5 text-xs focus:outline-none"
+          placeholder="Goes into the operation's history"
+        />
+
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={isPending}>
+            {isPending ? 'Working…' : `Confirm ${label(awaitingReason)}`}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={isPending}
+            onClick={() => {
+              setAwaitingReason(null)
+              setReason('')
+              setError(null)
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+
+        {error ? (
+          <p role="alert" className="bg-critical-soft text-critical rounded px-2 py-1.5 text-xs">
+            {error}
+          </p>
+        ) : null}
+      </form>
+    )
   }
 
   return (
@@ -79,7 +148,7 @@ export function OperationStatusActions({
             size="sm"
             variant={next === OperationStatus.CANCELLED ? 'danger' : 'primary'}
             disabled={isPending}
-            onClick={() => move(next)}
+            onClick={() => onPick(next)}
           >
             {isPending && pendingTarget === next ? 'Working…' : label(next)}
           </Button>

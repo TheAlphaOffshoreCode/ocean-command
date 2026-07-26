@@ -35,9 +35,29 @@ export async function nextOperationCode(
   organizationId: string,
   year: number,
 ): Promise<string> {
+  // The seed writes OP-2026-0001..0020 directly, a restored backup arrives with
+  // codes already in it, and neither touches this counter. So the *first*
+  // allocation for an (organization, year) starts from the highest code that
+  // already exists rather than from 1 — otherwise the first operation created
+  // through the product collides with seeded data and burns its retries.
+  // Every allocation after that is a pure atomic increment.
+  const codePrefix = `OP-${year}-`
+
   const rows = await tx.$queryRaw<Array<{ lastSequence: number }>>(Prisma.sql`
     INSERT INTO "OperationCounter" ("organizationId", "year", "lastSequence")
-    VALUES (${organizationId}, ${year}, 1)
+    VALUES (
+      ${organizationId},
+      ${year},
+      COALESCE(
+        (
+          SELECT MAX(NULLIF(regexp_replace("code", '^OP-[0-9]{4}-', ''), '')::int)
+          FROM "Operation"
+          WHERE "organizationId" = ${organizationId}
+            AND "code" LIKE ${`${codePrefix}%`}
+        ),
+        0
+      ) + 1
+    )
     ON CONFLICT ("organizationId", "year")
     DO UPDATE SET "lastSequence" = "OperationCounter"."lastSequence" + 1
     RETURNING "lastSequence"

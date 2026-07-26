@@ -63,7 +63,7 @@ export function OperationsTimeline({ operations, days = 7, now = new Date() }: P
         {/* The "now" line is what makes a bar late rather than merely long. */}
         <div
           className="bg-accent/40 pointer-events-none absolute inset-y-0 z-10 w-px"
-          style={{ left: `calc(${nowPercent}% )` }}
+          style={{ left: `${nowPercent}%` }}
           aria-hidden
         />
 

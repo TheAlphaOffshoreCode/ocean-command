@@ -118,6 +118,42 @@ describe('operations', async () => {
       expect(sequences).toEqual(Array.from({ length: 20 }, (_, index) => index + 1))
     })
 
+    it('starts the counter above codes that already exist', async () => {
+      // The seed writes OP-2026-0001..0020 straight into the table and never
+      // touches the counter; a restored backup behaves the same way. Before this
+      // was handled, the first operation created through the product asked for
+      // sequence 1, collided with seeded data, and burned its retries.
+      const year = 2033
+      await testDb.operationCounter.deleteMany({ where: { year } })
+
+      await forTenant(demo).operation.create({
+        data: {
+          code: `OP-${year}-0040`,
+          name: 'Pre-existing, allocated by something else',
+          type: 'SURVEY',
+          organizationId: demo.organizationId,
+          plannedStart: new Date(`${year}-01-01T00:00:00Z`),
+          plannedEnd: new Date(`${year}-01-01T06:00:00Z`),
+        },
+      })
+
+      try {
+        const allocated = await forTenant(demo).$transaction((tx) =>
+          nextOperationCode(tx, demo.organizationId, year),
+        )
+        expect(allocated).toBe(`OP-${year}-0041`)
+
+        // And from then on it is a plain increment, not another table scan.
+        const next = await forTenant(demo).$transaction((tx) =>
+          nextOperationCode(tx, demo.organizationId, year),
+        )
+        expect(next).toBe(`OP-${year}-0042`)
+      } finally {
+        await testDb.operation.deleteMany({ where: { code: { startsWith: `OP-${year}-` } } })
+        await testDb.operationCounter.deleteMany({ where: { year } })
+      }
+    })
+
     it('refuses to commit one vessel to two overlapping operations', async () => {
       const start = new Date(base.getTime() + 200 * HOUR)
       const end = new Date(start.getTime() + 12 * HOUR)
