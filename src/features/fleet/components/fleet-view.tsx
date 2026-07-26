@@ -8,6 +8,7 @@ import { ExternalLink, RefreshCw, Ship } from 'lucide-react'
 
 import { SourceBadge, VesselStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState, LoadingState } from '@/components/shared/states'
+import { TimeAgo } from '@/components/shared/time-ago'
 import { Button } from '@/components/ui/button'
 import { Panel, PanelBody, PanelHeader } from '@/components/ui/panel'
 import { syncPositions } from '@/features/fleet/actions/vessel-actions'
@@ -21,16 +22,6 @@ const FleetMap = dynamic(() => import('./fleet-map').then((module) => module.Fle
   ssr: false,
   loading: () => <LoadingState label="Loading chart" />,
 })
-
-function relativeTime(value: Date | null): string {
-  if (!value) return 'never'
-
-  const seconds = Math.round((Date.now() - new Date(value).getTime()) / 1000)
-  if (seconds < 60) return `${seconds}s ago`
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`
-  if (seconds < 86_400) return `${Math.round(seconds / 3600)}h ago`
-  return `${Math.round(seconds / 86_400)}d ago`
-}
 
 export function FleetView({
   vessels,
@@ -130,7 +121,9 @@ export function FleetView({
                     <span className="numeric">{selected.headingDeg ?? 0}°</span>
                   </Row>
                   <Row label="Destination">{selected.destination ?? '—'}</Row>
-                  <Row label="Updated">{relativeTime(selected.lastPositionAt)}</Row>
+                  <Row label="Updated">
+                    <TimeAgo value={selected.lastPositionAt} />
+                  </Row>
                   <Row label="Source">
                     <SourceBadge source={selected.positionSource} />
                   </Row>
@@ -184,6 +177,7 @@ export function FleetView({
                     <tr
                       key={vessel.id}
                       onClick={() => setSelectedId(vessel.id)}
+                      aria-selected={vessel.id === selectedId}
                       className={
                         vessel.id === selectedId
                           ? 'bg-surface-overlay cursor-pointer'
@@ -191,10 +185,16 @@ export function FleetView({
                       }
                     >
                       <Td>
-                        <span className="text-ink flex items-center gap-2 font-medium">
+                        {/* A button, not a span: a click handler on <tr> cannot be
+                            reached by keyboard, and this is the row's action. */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(vessel.id)}
+                          className="text-ink hover:text-accent flex items-center gap-2 font-medium"
+                        >
                           <Ship className="text-ink-faint size-3.5" aria-hidden />
                           {vessel.name}
-                        </span>
+                        </button>
                       </Td>
                       <Td>{vessel.type}</Td>
                       <Td>
@@ -204,7 +204,9 @@ export function FleetView({
                         <span className="numeric">{vessel.speedKn ?? 0} kn</span>
                       </Td>
                       <Td>{vessel.destination ?? '—'}</Td>
-                      <Td>{relativeTime(vessel.lastPositionAt)}</Td>
+                      <Td>
+                        <TimeAgo value={vessel.lastPositionAt} />
+                      </Td>
                       <Td>
                         <SourceBadge source={vessel.positionSource} />
                       </Td>

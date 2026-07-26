@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { Prisma, VesselStatus, VesselType } from '@prisma/client'
+import type { Prisma, Vessel, VesselStatus, VesselType } from '@prisma/client'
 
 import type { TenantContext } from '@/lib/auth/tenant-context'
 import { forTenant } from '@/lib/db/tenant'
@@ -106,9 +106,7 @@ export async function listFleetOverview(ctx: TenantContext): Promise<VesselListI
   return rows.map(toListItem)
 }
 
-type VesselRow = Awaited<ReturnType<ReturnType<typeof forTenant>['vessel']['findMany']>>[number]
-
-function toListItem(row: VesselRow): VesselListItem {
+function toListItem(row: Vessel): VesselListItem {
   const hasPosition = row.lastLatitude !== null && row.lastLongitude !== null
 
   return {

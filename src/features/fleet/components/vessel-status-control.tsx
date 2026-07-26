@@ -1,6 +1,7 @@
 'use client'
 
 import { VesselStatus } from '@prisma/client'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { updateVesselStatus } from '@/features/fleet/actions/vessel-actions'
@@ -29,6 +30,7 @@ export function VesselStatusControl({
   const [current, setCurrent] = useState(status)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const router = useRouter()
 
   function onChange(next: VesselStatus) {
     const previous = current
@@ -37,12 +39,19 @@ export function VesselStatusControl({
 
     startTransition(async () => {
       const result = await updateVesselStatus({ id: vesselId, status: next })
+
       if (!result.ok) {
         // Put the control back where it was: showing a status the server refused
         // would leave the operator believing they reported something they did not.
         setCurrent(previous)
         setError(result.error)
+        return
       }
+
+      // The action revalidated the path, but this component owns its own state, so
+      // without a refresh the badge in the header would keep showing the old
+      // status — two different answers on one screen.
+      router.refresh()
     })
   }
 

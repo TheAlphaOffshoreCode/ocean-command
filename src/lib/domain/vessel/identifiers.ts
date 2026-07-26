@@ -16,10 +16,8 @@
 export function isValidIMO(value: string): boolean {
   if (!/^\d{7}$/.test(value)) return false
 
-  const digits = [...value].map(Number) as number[]
-  const weighted = digits
-    .slice(0, 6)
-    .reduce((sum, digit, index) => sum + digit * (7 - index), 0)
+  const digits = [...value].map(Number)
+  const weighted = digits.slice(0, 6).reduce((sum, digit, index) => sum + digit * (7 - index), 0)
 
   return weighted % 10 === digits[6]
 }

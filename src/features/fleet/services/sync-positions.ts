@@ -42,8 +42,12 @@ export async function syncFleetPositions(ctx: TenantContext): Promise<SyncOutcom
     },
   })
 
-  const tracked = vessels.filter((vessel) => isTracked(vessel))
-  const mmsiList = tracked.map((vessel) => vessel.mmsi!).filter(Boolean)
+  // flatMap rather than filter + `!`: it narrows mmsi to a string, so the rest of
+  // the function never has to assert that a tracked vessel has one.
+  const tracked = vessels.flatMap((vessel) =>
+    isTracked(vessel) && vessel.mmsi ? [{ ...vessel, mmsi: vessel.mmsi }] : [],
+  )
+  const mmsiList = tracked.map((vessel) => vessel.mmsi)
 
   if (mmsiList.length === 0) {
     return { requested: 0, fixesRecorded: 0, skipped: vessels.length, syncedAt: new Date() }
@@ -65,7 +69,7 @@ export async function syncFleetPositions(ctx: TenantContext): Promise<SyncOutcom
   let fixesRecorded = 0
 
   for (const vessel of tracked) {
-    const snapshot = byMmsi.get(vessel.mmsi!)
+    const snapshot = byMmsi.get(vessel.mmsi)
     if (!snapshot) continue
 
     const previous =
