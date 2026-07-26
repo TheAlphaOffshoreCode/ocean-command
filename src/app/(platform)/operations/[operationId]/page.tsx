@@ -13,6 +13,8 @@ import {
 } from '@/features/operations/components/operation-badges'
 import { OperationStatusActions } from '@/features/operations/components/operation-status-actions'
 import { getOperation } from '@/features/operations/queries/get-operation'
+import { VerdictReasons, WindowBadge } from '@/features/weather/components/window-badge'
+import { getOperationWeather } from '@/features/weather/queries/get-conditions'
 import { can } from '@/lib/auth/authorize'
 import { requireTenantContext } from '@/lib/auth/tenant-context'
 import { label } from '@/lib/domain/operation/transitions'
@@ -32,6 +34,15 @@ export default async function OperationDetailPage({
 
   // Null covers "does not exist" and "belongs to another organization" alike.
   if (!operation) notFound()
+
+  // The weather verdict for *this* operation's type at *its* location. The same sea
+  // is favourable for anchor handling and unsafe for divers, so the verdict is
+  // meaningless without both.
+  const weather = await getOperationWeather(ctx, {
+    locationId: operation.location?.id ?? null,
+    type: operation.type,
+    plannedStart: operation.plannedStart,
+  })
 
   const delayed =
     operation.actualStart === null
@@ -134,6 +145,42 @@ export default async function OperationDetailPage({
         </div>
 
         <div className="space-y-4">
+          <Panel>
+            <PanelHeader
+              title="Weather window"
+              description={weather ? `At ${weather.conditions.locationName}` : undefined}
+            />
+            <PanelBody>
+              {weather ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <WindowBadge status={weather.verdict.status} />
+                    <span className="text-ink-faint text-[11px]">
+                      <TimeAgo value={weather.conditions.observedAt} />
+                    </span>
+                  </div>
+
+                  <VerdictReasons verdict={weather.verdict} />
+
+                  {weather.changesAt ? (
+                    <p className="text-ink-muted border-line numeric border-t pt-2 text-[11px]">
+                      Changes to {weather.changesAt.status.toLowerCase()} at{' '}
+                      {weather.changesAt.at.toISOString().slice(11, 16)}Z
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                // Reported as missing, never as Favorable: "no data" and "safe to
+                // work" are different answers.
+                <p className="text-ink-faint text-xs">
+                  {operation.location
+                    ? 'No conditions stored for this location yet — refresh on the Weather page.'
+                    : 'This operation has no location, so no window can be evaluated.'}
+                </p>
+              )}
+            </PanelBody>
+          </Panel>
+
           <Panel>
             <PanelHeader title="Move status" />
             <PanelBody>

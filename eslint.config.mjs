@@ -45,7 +45,7 @@ const config = [
 
   {
     // The data layer itself, the seed and the tests are what construct clients.
-    files: ['src/lib/db/**', 'src/lib/auth/**', 'prisma/**', 'tests/**'],
+    files: ['src/lib/db/**', 'src/lib/auth/**', 'prisma/**', 'tests/**', 'scripts/**'],
     rules: {
       'no-restricted-imports': 'off',
       'no-console': 'off',

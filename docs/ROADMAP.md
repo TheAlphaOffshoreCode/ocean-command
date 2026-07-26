@@ -2,9 +2,9 @@
 
 Legend: ✅ Implemented · 🚧 In Development · 🔜 Planned
 
-**Current state: Phases 0 to 3 complete.** The application runs, four roles sign in, every mutation
-is audited, the fleet is on a chart with simulated AIS, and operations move through an enforced
-lifecycle with plan-versus-actual and an activity feed. Weather starts at phase 4.
+**Current state: Phases 0 to 4 complete.** The application runs, four roles sign in, every mutation
+is audited, the fleet is on a chart with simulated AIS, operations move through an enforced lifecycle,
+and **real** weather from Open-Meteo drives per-operation-type window verdicts. Risk starts at phase 5.
 
 ---
 
@@ -204,7 +204,7 @@ module rather than bolted onto a read-only view.
 
 ---
 
-## Phase 4 — Environmental Intelligence 🔜
+## Phase 4 — Environmental Intelligence ✅
 
 *"Does the environment allow us to continue?"*
 
@@ -219,8 +219,42 @@ module rather than bolted onto a read-only view.
 * Weather verdict surfaced on the operation and vessel views.
 * Tests written before the implementation, exactly at each threshold boundary.
 
-**Acceptance:** raising forecast wind above a type's unsafe limit turns that operation's verdict
-Unsafe on the operation page, and the UI names the metric that caused it.
+**Acceptance — met, verified end to end on 2026-07-26 against live Open-Meteo data:**
+
+Real conditions at Santos Basin SB-14 (5 kn, 1.72 m, 18.1 NM) on a cargo operation, then the same
+operation with the wind raised to 31 kn:
+
+```text
+before:  Favorable   "All metrics within limits"
+after:   Unsafe      "Wind 31 kn against limit 28 kn"
+                     "Gusts 38 kn against limit 33 kn"
+                     "Changes to favorable at 23:00Z"
+```
+
+The last line is beyond the criterion: it comes from the stored forecast, so the panel says not only
+that work is stopped but when it can resume.
+
+* Live refresh stored **6 observations and 288 forecast hours** across the six locations, every row
+  tagged `REAL` / `open-meteo`, with visibility converted from Open-Meteo's metres to nautical miles.
+* With today's real sea, five of six locations read **Marginal for crew transfer** (1.6–1.9 m against
+  a 1.5 m marginal limit) and the Vitória anchorage reads Favorable — the same water, different
+  answers per operation type, which is the point of the module.
+* 163 tests: 20 on the window engine written **before** the implementation (confirmed failing first),
+  13 on the providers, and 11 integration tests covering the write path and the tenant boundary.
+
+**Two defects this phase produced, both worth recording:**
+
+1. `refreshWeather` used `upsert`, which the tenant-scoped client refuses — an upsert addresses its
+   row by unique key alone and Prisma will not accept the organization filter beside it. The guard
+   caught it at runtime, but **no test did**, because every weather test wrote its fixtures with
+   `create` and never exercised the service. There is now a test for the write path.
+2. The suite talked to the real Open-Meteo, so it failed twice and then passed with no code change.
+   Tests and CI now force the deterministic mocks: a flaky suite is worse than a slow one, and CI
+   should not hammer somebody's free service on every push.
+
+**Deferred:** the "weather window timeline" showing when each operation type becomes workable across
+the horizon. The per-operation panel already answers "can we work now, and when does that change";
+a full grid of types against hours belongs with the analytics views in phase 8.
 
 ---
 

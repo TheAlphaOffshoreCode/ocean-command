@@ -35,6 +35,10 @@ jobs:
       # CI-only value. Real secrets never live in a workflow file.
       BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-000
       BETTER_AUTH_URL: http://localhost:3000
+      # Deterministic providers: CI must not depend on a third party being up, and
+      # must not call somebody's free weather service on every push.
+      WEATHER_PROVIDER: mock
+      AIS_PROVIDER: mock
 
     steps:
       - uses: actions/checkout@v4

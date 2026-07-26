@@ -10,10 +10,10 @@ down and testable.
 
 ## Current state — read this first
 
-**Phases 0 to 3 are complete.** You can run the application, sign in as any of four roles, watch the
-fleet on a chart with simulated AIS, and move operations through an enforced lifecycle with
-plan-versus-actual and an activity feed. Weather, risk, alerts, assets and incidents are **not built
-yet** — phases 4 to 8.
+**Phases 0 to 4 are complete.** You can run the application, sign in as any of four roles, watch the
+fleet on a chart with simulated AIS, move operations through an enforced lifecycle, and read **real**
+weather from Open-Meteo turned into per-operation-type window verdicts. Risk, alerts, assets and
+incidents are **not built yet** — phases 5 to 8.
 
 | Capability | Status |
 | --- | --- |
@@ -29,7 +29,8 @@ yet** — phases 4 to 8.
 | **Simulated AIS** — deterministic provider, position history, scheduled refresh | ✅ |
 | **Operations Center** — enforced lifecycle, plan vs. actual timeline, activity feed | ✅ |
 | **Vessel double-booking refused** with the conflicting operation named | ✅ |
-| Weather, risk, alerts, assets, incidents, analytics | 🔜 Phases 4–8 |
+| **Environmental Intelligence** — real Open-Meteo data, window verdicts per operation type | ✅ |
+| Risk, alerts, assets, incidents, analytics | 🔜 Phases 5–8 |
 | Ocean AI | 🔜 Phase 9 |
 | E2E tests, metrics, deployment | 🔜 Phase 10 |
 
@@ -42,8 +43,8 @@ light, because three of the four inputs to that score do not exist before phase 
 ```text
 lint       ✓ no errors
 typecheck  ✓ no errors
-test       ✓ 119 passed (13 files)
-build      ✓ 11 routes
+test       ✓ 163 passed (16 files)
+build      ✓ 13 routes
 ```
 
 Against a real PostgreSQL 17: all three migrations apply to an empty database, all 10 CHECK
@@ -63,6 +64,11 @@ The fleet view reports **6 of 8 vessels reporting**, and the two that do not are
 excludes from tracking: one alongside for maintenance, one FPSO on station. Positions advance
 between syncs, every one is labelled `Simulated`, and two back-to-back syncs record **0** new history
 rows — the recording rule working, not a failure.
+
+A live weather refresh stored **6 observations and 288 forecast hours** from Open-Meteo, tagged
+`REAL`. Raising the wind at one location to 31 kn turns that location's cargo operation from
+*Favorable* to **Unsafe — "Wind 31 kn against limit 28 kn"**, and the panel adds when the window
+reopens.
 
 ---
 
@@ -142,8 +148,8 @@ accept, making a forgotten tenant filter a type error rather than a data leak.
 ## Stack
 
 Next.js 16 · React 19 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`) · Tailwind 4 ·
-PostgreSQL 17 · Prisma 7 · Better Auth · Argon2id · Zod 4 · Leaflet · Vitest · npm.
-Recharts arrives with the charts that need it (phase 4).
+PostgreSQL 17 · Prisma 7 · Better Auth · Argon2id · Zod 4 · Leaflet · Recharts · Vitest · npm.
+Weather comes from Open-Meteo — free, no API key.
 
 Every choice, and the alternative it beat, is in [DECISIONS.md](docs/DECISIONS.md) — including
 three decisions revised during phase 1 because the environment disagreed with the plan.
@@ -194,6 +200,11 @@ explicit:
 Only vessels the domain considers trackable report: an FPSO on station and a hull alongside for
 maintenance are excluded, which is why the fleet header reads 6 of 8.
 
+Weather works the same way — **Refresh** on the Weather page, or
+`POST /api/cron/weather-refresh` with the same bearer token. It pulls live Open-Meteo data by
+default; set `WEATHER_PROVIDER=mock` to work offline. Tests and CI always use the mock, so neither
+depends on a third party being up.
+
 ## Quality gate
 
 No phase is considered done until all of these pass in CI:
@@ -220,7 +231,7 @@ deletable.
 ## Roadmap
 
 Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command ✅ · 3 Operations ✅ · 4 Environmental
-Intelligence · 5 Risk & Alerts · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
+Intelligence ✅ · 5 Risk & Alerts · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
 9 Ocean AI · 10 Production Readiness.
 
 Details and acceptance criteria per phase: [ROADMAP.md](docs/ROADMAP.md).

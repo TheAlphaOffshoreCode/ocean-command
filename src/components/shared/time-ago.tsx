@@ -51,6 +51,18 @@ function absolute(value: Date): string {
   return `${value.toISOString().slice(11, 16)}Z`
 }
 
+/**
+ * The client clock, bucketed and hydration-safe. Null until the client is running.
+ *
+ * Exported because more than one component needs "how old is this?" — and every
+ * component that computes it from Date.now() during render reintroduces the
+ * hydration mismatch this file exists to avoid.
+ */
+export function useNowBucket(): number | null {
+  const bucket = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  return bucket === null ? null : bucket * TICK_MS
+}
+
 export function TimeAgo({ value, fallback = 'never' }: { value: Date | null; fallback?: string }) {
   const bucket = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
