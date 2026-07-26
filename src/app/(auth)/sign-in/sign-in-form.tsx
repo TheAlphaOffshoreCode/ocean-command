@@ -54,7 +54,7 @@ export function SignInForm() {
         />
       </div>
 
-      {state && !state.ok ? (
+      {state ? (
         // role="alert" so a screen reader announces the failure instead of
         // leaving someone waiting for a page that already came back.
         <p

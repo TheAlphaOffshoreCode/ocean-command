@@ -115,5 +115,76 @@ describe('audit trail', async () => {
       expect(after?.password).toBe('[redacted]')
       expect(JSON.stringify(after)).not.toContain('should-never-be-stored')
     })
+
+    it('redacts nested secrets and keeps arrays as arrays', async () => {
+      const vessel = await withAudit(
+        context,
+        (created: { id: string }) => ({
+          action: 'vessel.created',
+          entityType: 'VesselTestFixture',
+          entityId: created.id,
+          after: {
+            name: 'OC Nested Probe',
+            crew: ['first', 'second'],
+            integration: { apiKey: 'nested-secret-value', endpoint: 'https://example.test' },
+          },
+        }),
+        (tx) =>
+          tx.vessel.create({
+            data: {
+              name: 'OC Nested Probe',
+              type: 'PSV',
+              flag: 'BR',
+              organizationId: context.organizationId,
+            },
+          }),
+      )
+      vesselIds.push(vessel.id)
+
+      const entry = await testDb.auditLog.findFirst({
+        where: { entityType: 'VesselTestFixture', entityId: vessel.id },
+      })
+      const after = entry?.after as Record<string, unknown>
+      const integration = after.integration as Record<string, unknown>
+
+      expect(integration.apiKey).toBe('[redacted]')
+      expect(integration.endpoint).toBe('https://example.test')
+      expect(JSON.stringify(after)).not.toContain('nested-secret-value')
+
+      // An earlier version ran arrays through Object.entries, storing
+      // {"0":"first","1":"second"} and quietly corrupting the recorded diff.
+      expect(after.crew).toEqual(['first', 'second'])
+    })
+
+    it('scopes the transaction to the caller organization', async () => {
+      const other = await testDb.organization.findUniqueOrThrow({
+        where: { slug: 'northern-marine' },
+      })
+
+      // withAudit runs on forTenant(ctx).$transaction, so a write that names
+      // another organization is overruled even inside the transaction. Using the
+      // raw client here would have made audited mutations the one unscoped path.
+      const vessel = await withAudit(
+        context,
+        (created: { id: string }) => ({
+          action: 'vessel.created',
+          entityType: 'VesselTestFixture',
+          entityId: created.id,
+        }),
+        (tx) =>
+          tx.vessel.create({
+            data: {
+              name: 'OC Scoped Tx Probe',
+              type: 'PSV',
+              flag: 'BR',
+              organizationId: other.id,
+            },
+          }),
+      )
+      vesselIds.push(vessel.id)
+
+      expect(vessel.organizationId).toBe(context.organizationId)
+      expect(vessel.organizationId).not.toBe(other.id)
+    })
   })
 })

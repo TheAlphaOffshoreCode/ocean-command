@@ -1,6 +1,7 @@
 'use server'
 
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { APIError } from 'better-auth/api'
 
 import { auth } from '@/lib/auth/auth'
@@ -8,7 +9,11 @@ import { logger } from '@/lib/logger'
 
 import { signInSchema } from '../schemas/sign-in'
 
-export type SignInResult = { ok: true } | { ok: false; message: string }
+/**
+ * Only the failure case comes back to the client: success ends in a redirect, so
+ * there is no `ok: true` state for the form to render.
+ */
+export type SignInResult = { ok: false; message: string }
 
 /**
  * Sign in.
@@ -52,5 +57,8 @@ export async function signIn(_previous: SignInResult | null, formData: FormData)
     return { ok: false as const, message: 'Sign-in is unavailable right now.' }
   }
 
-  return { ok: true as const }
+  // Outside the try: redirect() signals by throwing, so catching it here would
+  // swallow the navigation and leave the user staring at the form they just
+  // submitted successfully — the session cookie set, and nothing happening.
+  redirect('/command-center')
 }

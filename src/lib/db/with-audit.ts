@@ -1,18 +1,30 @@
 import 'server-only'
 
 import { headers } from 'next/headers'
-import type { Prisma } from '@prisma/client'
 
 import type { TenantContext } from '@/lib/auth/tenant-context'
-import { prisma } from '@/lib/db/client'
+
+import { forTenant, type TenantDb } from './tenant'
 
 /**
- * Runs a mutation and its audit row in one transaction.
+ * Runs a mutation and its audit row in one transaction, scoped to the caller's
+ * organization.
  *
- * If the audit write fails, the change rolls back. That is the whole point: an
- * audit trail that can silently disagree with the data is worse than none,
- * because people trust it.
+ * Two guarantees, and both matter:
+ *
+ * 1. If the audit write fails, the change rolls back. An audit trail that can
+ *    silently disagree with the data is worse than none, because it is trusted.
+ * 2. The transaction comes from `forTenant(ctx)`, so tenant scoping still applies
+ *    inside it. Reaching for the raw client here is the obvious move — that is
+ *    where `$transaction` appears to live — and it would have made every audited
+ *    mutation the one write path with no tenant filter.
  */
+
+/** The transaction handle: the tenant-scoped client minus what cannot run inside a transaction. */
+export type TenantTransaction = Omit<
+  TenantDb,
+  '$transaction' | '$connect' | '$disconnect' | '$extends'
+>
 
 export type AuditEntry = {
   /** Domain event, not HTTP verb: "operation.status_changed". */
@@ -23,19 +35,46 @@ export type AuditEntry = {
   after?: unknown
 }
 
-/** Fields never written to the audit trail, even if a caller passes them. */
-const REDACTED_FIELDS = new Set(['password', 'passwordHash', 'token', 'secret', 'accessToken'])
+/** Never written to the audit trail, at any depth, even if a caller passes them. */
+const REDACTED_FIELDS = new Set([
+  'password',
+  'passwordHash',
+  'token',
+  'secret',
+  'accessToken',
+  'refreshToken',
+  'apiKey',
+])
 
-function redact(value: unknown): Prisma.InputJsonValue | undefined {
-  if (value === undefined || value === null) return undefined
-  if (typeof value !== 'object') return value as Prisma.InputJsonValue
+const MAX_DEPTH = 6
 
-  const source = value as Record<string, unknown>
-  const output: Record<string, unknown> = {}
-  for (const [key, entry] of Object.entries(source)) {
-    output[key] = REDACTED_FIELDS.has(key) ? '[redacted]' : entry
-  }
-  return output as Prisma.InputJsonValue
+/**
+ * Deep copy with sensitive keys replaced.
+ *
+ * Arrays stay arrays: the first version fed them to Object.entries and turned
+ * `[a, b]` into `{0: a, 1: b}`, quietly corrupting the diff this trail exists to
+ * preserve. Nesting is followed, because a redaction that only covers the top
+ * level protects nothing once a caller passes a whole record.
+ */
+function redact(value: unknown, depth = 0): unknown {
+  if (value === null || typeof value !== 'object') return value
+  if (depth >= MAX_DEPTH) return '[truncated]'
+  if (value instanceof Date) return value.toISOString()
+
+  if (Array.isArray(value)) return value.map((entry) => redact(entry, depth + 1))
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      REDACTED_FIELDS.has(key) ? '[redacted]' : redact(entry, depth + 1),
+    ]),
+  )
+}
+
+/** `undefined` leaves the column NULL; Prisma's Json input rejects raw undefined. */
+function auditJson(value: unknown) {
+  if (value === undefined) return undefined
+  return redact(value) as never
 }
 
 async function requestMetadata() {
@@ -47,7 +86,7 @@ async function requestMetadata() {
       userAgent: headerList.get('user-agent'),
     }
   } catch {
-    // Outside a request (seed, script): no metadata to record, and that is fine.
+    // Outside a request (seed, script): nothing to record, which is fine.
     return { ipAddress: null, userAgent: null }
   }
 }
@@ -55,11 +94,11 @@ async function requestMetadata() {
 export async function withAudit<T>(
   ctx: TenantContext,
   entry: AuditEntry | ((result: T) => AuditEntry),
-  mutate: (tx: Prisma.TransactionClient) => Promise<T>,
+  mutate: (tx: TenantTransaction) => Promise<T>,
 ): Promise<T> {
   const { ipAddress, userAgent } = await requestMetadata()
 
-  return prisma.$transaction(async (tx) => {
+  return forTenant(ctx).$transaction(async (tx) => {
     const result = await mutate(tx)
     const record = typeof entry === 'function' ? entry(result) : entry
 
@@ -70,8 +109,8 @@ export async function withAudit<T>(
         action: record.action,
         entityType: record.entityType,
         entityId: record.entityId,
-        before: redact(record.before),
-        after: redact(record.after),
+        before: auditJson(record.before),
+        after: auditJson(record.after),
         ipAddress,
         userAgent,
       },

@@ -229,6 +229,15 @@ document says so rather than inventing one.
 | AI tool sandboxing | 🔜 Phase 9 |
 | Append-only DB grants, RLS backstop, pen-test pass | 🔜 Phase 10 |
 
+### Audited mutations are tenant-scoped
+
+`withAudit()` runs on `forTenant(ctx).$transaction`, not on the raw client. The first version used
+the raw client — the natural place to look for `$transaction` — which would have made every audited
+mutation the single write path with no tenant filter, in a codebase whose whole isolation story is
+that such a path does not exist. Verified: the extension does apply inside the transaction, and a
+write naming another organization is overruled. Covered by
+`tests/integration/audit.test.ts`.
+
 ### What Phase 1 actually proved
 
 Verified against a running instance, not asserted:
@@ -253,6 +262,7 @@ Verified against a running instance, not asserted:
 * **`AuditLog` is append-only by convention, not by grant.** No update or delete path exists in
   the application, but the database role can still do both. The `INSERT`/`SELECT`-only grant is
   Phase 10.
-* **No E2E test covers the sign-in flow.** It was verified by hand against a running server this
-  phase; Playwright is Phase 10, so until then a regression here would be caught by a person, not
-  by CI.
+* **No E2E test covers the sign-in flow.** The API path was verified by hand against a running
+  server; the browser path — form submit followed by the redirect into the Command Center — is
+  covered only by typecheck, because driving a server action needs a real browser. Playwright is
+  Phase 10, so until then a regression there would be caught by a person, not by CI.
