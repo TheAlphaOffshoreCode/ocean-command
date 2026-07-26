@@ -2,7 +2,8 @@
 
 Legend: ✅ Implemented · 🚧 In Development · 🔜 Planned
 
-**Current state: Phase 0 complete. No application code exists yet.**
+**Current state: Phases 0 and 1 complete.** The application runs, four roles sign in, every
+mutation is audited. Operational modules start at phase 2.
 
 ---
 
@@ -40,28 +41,60 @@ something to lint.
 
 ---
 
-## Phase 1 — Foundation 🔜
+## Phase 1 — Foundation ✅
 
 *A person can sign in, see an empty but real command center, and every action is audited.*
 
-* Next.js 16 + React 19 + TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), ESLint, Prettier.
-* Tailwind 4 + shadcn/ui, **design tokens first**: the command-center palette, density scale and
-  typography are decided before any screen, so the product does not converge on a default admin
-  look (risk #9 in `ARCHITECTURE.md`).
-* PostgreSQL via Docker Compose locally, Neon for deployment. Prisma schema from `DATABASE.md`,
-  first migration, `db:seed`.
-* Better Auth: sign-in, sessions, password hashing, sign-out, rate limiting.
-* `TenantContext`, `authorize()`, permission matrix, protected route group.
-* `lib/db` tenant-scoped access helpers; ESLint rule banning the raw Prisma client elsewhere.
-* Audit log helper wired into a transaction wrapper used by every mutation.
-* Zod-validated `env.ts`, structured logger, typed error hierarchy, security headers.
-* Application shell: top navigation, sidebar, user menu, organization switcher, `DEMO DATA`
-  banner, and the shared state components (`Loading`, `Empty`, `Error`).
-* Tests: RBAC matrix, tenant isolation on the first query module, audit-on-mutation.
-* CI: lint → typecheck → test (with a Postgres service) → build, plus secret scan.
+Delivered:
 
-**Acceptance:** four seeded users sign in and land on a shell whose navigation reflects their
-role. An operator's forbidden action fails server-side even when the request is forged by hand.
+* Next.js 16 + React 19 + TypeScript 5.9 (`strict`, `noUncheckedIndexedAccess`), ESLint, Prettier.
+* Tailwind 4 with **design tokens first**: the command-center palette, density scale and typography
+  were decided before any screen, so the product does not converge on a default admin look
+  (risk #9 in `ARCHITECTURE.md`).
+* PostgreSQL 17 via Docker Compose. Schema in `prisma/schema.prisma`, two migrations — the second
+  carries the CHECK constraints and the partial unique index Prisma cannot express — and an
+  idempotent `db:seed`.
+* Better Auth: sign-in, database-backed sessions, **Argon2id** (`@node-rs/argon2`) plugged in
+  through `emailAndPassword.password`, sign-out, rate limiting (5 sign-in attempts / 15 min).
+* `TenantContext`, `authorize()`, the permission matrix, and a protected route group.
+* `forTenant(ctx)` — a Prisma extension that injects the tenant on reads and writes, and refuses
+  operations that cannot carry a tenant filter. ESLint bans the raw client outside `lib/db`.
+* `withAudit()` — mutation and audit row in one transaction.
+* Zod-validated `env.ts`, Pino logger with redaction, typed error hierarchy, security headers, and
+  a nonce-based CSP in middleware.
+* Application shell: top bar, permission-filtered module navigation, user menu, `DEMO DATA`
+  marker, and the shared `Loading` / `Empty` / `Error` components.
+* Tests: the RBAC matrix, `authorize()` including the 404-not-403 rule, tenant isolation against a
+  real database, audit-on-mutation with rollback and redaction, and a registry test that reads the
+  schema and fails if a tenant-owned model is not scoped.
+* CI: lint → typecheck → test (PostgreSQL service) → build, plus migration-drift check and secret
+  scan.
+
+**Acceptance — met, and verified against a running instance on 2026-07-26:**
+
+* All four seeded roles sign in through the real Better Auth flow (HTTP 200) and land on a shell
+  that matches their permissions: Viewer 10, Operator 17, Operations Manager 30, Administrator 36.
+  Only the Administrator sees the Administration module.
+* `/command-center` without a session redirects to `/sign-in` (307).
+* A wrong password and an unknown e-mail return the **same** 401 and message — no enumeration
+  oracle. The sixth attempt in 15 minutes returns 429.
+* 26 tests pass, including tenant isolation against a real PostgreSQL: another organization cannot
+  read, update or delete a record by id, and a `create` that names a foreign `organizationId` is
+  overruled to the caller's own.
+* Both migrations apply to an empty database; all 10 CHECK constraints and the partial unique index
+  exist; the seed is idempotent.
+
+**Deferred from this phase, deliberately:** shadcn/ui was not adopted — the shell needed a button,
+a panel, a dropdown and three state components, so they were written directly (which is what
+shadcn is: code you own) rather than pulling in a generator and a component library for four
+files. Leaflet and Recharts arrive with the modules that use them. Organization switching is not
+built: the field and the server-side plumbing exist, but with one organization per seeded user
+there is nothing to switch between, and shipping the UI now would mean shipping it untested.
+
+**Two things this phase changed in the plan**, both recorded in
+[DECISIONS.md](./DECISIONS.md): pnpm was replaced by npm (corepack cannot install its shims
+without administrator rights on this machine), and TypeScript was pinned to 5.9 instead of 7.0
+because the ESLint toolchain is not built against 7 yet.
 
 ---
 

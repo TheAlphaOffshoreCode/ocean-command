@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: lint · typecheck · test · build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ocean
+          POSTGRES_PASSWORD: ocean_ci
+          POSTGRES_DB: ocean_command
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ocean -d ocean_command"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://ocean:ocean_ci@localhost:5432/ocean_command
+      DIRECT_DATABASE_URL: postgresql://ocean:ocean_ci@localhost:5432/ocean_command
+      # CI-only value. Real secrets never live in a workflow file.
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-000
+      BETTER_AUTH_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # Migrations run against an empty database on every build, which is what
+      # proves they still apply from scratch — not just on top of a dev database
+      # that has been drifting for weeks.
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Check for schema drift
+        run: |
+          npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "$DATABASE_URL" \
+            --exit-code && echo "schema and migrations agree"
+
+      - run: npm run db:seed
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      # Integration tests run for real here: the service container means the
+      # tenant-isolation suite cannot silently skip.
+      - run: npm run test
+
+      - run: npm run build
+
+  secret-scan:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # TruffleHog diffs the range a push introduced, which needs the parent
+          # of the first commit. A shallow checkout makes multi-commit pushes
+          # fail for a reason that has nothing to do with secrets.
+          fetch-depth: 0
+
+      - uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified,unknown

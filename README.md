@@ -10,26 +10,42 @@ down and testable.
 
 ## Current state — read this first
 
-**Phase 0 (Architecture) is complete. There is no application code in this repository yet.**
+**Phases 0 (Architecture) and 1 (Foundation) are complete.** You can run the application, sign in
+as any of four roles, and every mutation is audited. The operational modules — fleet, operations,
+weather, risk, alerts, assets, incidents — are **not built yet**; they are phases 2 to 8.
 
-This is a deliberate first step, not an unfinished one. Phase 0 produced the domain model, the
-schema, the decision rules, the security model and the roadmap, so that Phase 1 starts from a
-design instead of discovering it mid-implementation.
-
-| Deliverable | Status |
+| Capability | Status |
 | --- | --- |
-| Product analysis and module scope | ✅ [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Architecture, layers, module graph, provider strategy | ✅ [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Domain model, reference schema, indexes, constraints | ✅ [DATABASE.md](docs/DATABASE.md) |
-| Risk / weather-window / readiness formulas | ✅ [ARCHITECTURE.md §5](docs/ARCHITECTURE.md) |
-| Auth, RBAC matrix, multi-tenancy, threat model | ✅ [SECURITY.md](docs/SECURITY.md) |
-| Internal API contracts | ✅ [API.md](docs/API.md) |
-| Technology decisions, alternatives rejected | ✅ [DECISIONS.md](docs/DECISIONS.md) + [ADRs](docs/adr/) |
-| Roadmap with per-phase acceptance criteria | ✅ [ROADMAP.md](docs/ROADMAP.md) |
-| Application, database, UI | 🔜 Phase 1 |
+| Architecture, domain model, decision rules, threat model | ✅ [docs/](docs/) |
+| PostgreSQL schema — 24 tables, 2 migrations, CHECK constraints, partial unique index | ✅ |
+| Authentication — e-mail/password, Argon2id, database sessions, rate limiting | ✅ |
+| RBAC — 4 roles, 36 permissions, one matrix, checked server-side | ✅ |
+| Multi-tenancy — `TenantContext` required by every data access | ✅ |
+| Audit trail — written inside the mutation's transaction | ✅ |
+| Application shell — navigation filtered by role, `DEMO DATA` marker | ✅ |
+| Deterministic idempotent seed — 2 organizations, one user per role | ✅ |
+| Fleet, operations, weather, risk, alerts, assets, incidents, analytics | 🔜 Phases 2–8 |
+| Ocean AI | 🔜 Phase 9 |
+| E2E tests, metrics, deployment | 🔜 Phase 10 |
 
-Nothing below is described as working unless this table says it is. The status column is updated
-when a phase actually passes its gate — never in advance.
+Nothing is described as working unless this table says it is, and the Command Center says the same
+thing on screen: its Operational Status panel reports **"not computable yet"** rather than a green
+light, because three of the four inputs to that score do not exist before phase 6.
+
+### Verified on 2026-07-26
+
+```text
+lint       ✓ no errors
+typecheck  ✓ no errors
+test       ✓ 26 passed (5 files)
+build      ✓ 6 routes
+```
+
+Plus, against a real PostgreSQL 17: both migrations apply to an empty database, all 10 CHECK
+constraints and the partial unique index exist, the seed is idempotent (run twice → same counts),
+and all four seeded roles sign in and receive a shell that matches their permissions — a Viewer
+sees 10 permissions and no Administration module, an Operator 17 with `alert:acknowledge` but not
+`alert:resolve`, a Manager 30, an Administrator 36.
 
 ---
 
@@ -108,20 +124,49 @@ accept, making a forgotten tenant filter a type error rather than a data leak.
 
 ## Stack
 
-Next.js 16 · React 19 · TypeScript 7 (strict) · Tailwind 4 · shadcn/ui · PostgreSQL 17 ·
-Prisma 7 · Better Auth · Zod 4 · Leaflet · Recharts · Vitest · pnpm.
+Next.js 16 · React 19 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`) · Tailwind 4 ·
+PostgreSQL 17 · Prisma 7 · Better Auth · Argon2id · Zod 4 · Vitest · npm.
+Leaflet and Recharts arrive with the modules that need them (phases 2 and 8).
 
-Every choice, and the alternative it beat, is in [DECISIONS.md](docs/DECISIONS.md).
-Running cost of the MVP is zero: free tiers and open source only.
+Every choice, and the alternative it beat, is in [DECISIONS.md](docs/DECISIONS.md) — including
+three decisions revised during phase 1 because the environment disagreed with the plan.
+Running cost is zero: free tiers and open source only.
 
 ## Getting started
 
-Nothing to run yet — Phase 1 creates the application. When it exists, this section will carry the
-real commands, verified, and not before.
+Requires Node 22+ and Docker.
+
+```bash
+cp .env.example .env          # then set BETTER_AUTH_SECRET (openssl rand -base64 32)
+npm install
+docker compose up -d          # PostgreSQL 17 on port 5433
+npx prisma migrate deploy     # or `npm run db:migrate` while developing
+npm run db:seed               # idempotent — safe to re-run
+npm run dev                   # http://localhost:3000
+```
+
+### Demo access
+
+Seeded accounts, **development only**, all with the password `OceanCommand2026!`:
+
+| E-mail | Role |
+| --- | --- |
+| `admin@oceancommand.demo` | Administrator |
+| `manager@oceancommand.demo` | Operations Manager |
+| `operator@oceancommand.demo` | Operator |
+| `viewer@oceancommand.demo` | Viewer |
+
+Sign in as more than one to see the same page grant different access. These accounts exist only in
+a database you seeded yourself, in an organization flagged `isDemo`, which is what puts the
+`DEMO DATA` marker in the header.
+
+A second organization, `northern-marine`, is seeded with one user and no data. It is not a demo of
+anything: it exists so the tenant-isolation tests can *prove* that one organization cannot read
+another's records instead of asserting it.
 
 ## Quality gate
 
-From Phase 1 onward, no phase is considered done until all of these pass in CI:
+No phase is considered done until all of these pass in CI:
 
 ```text
 lint  ·  typecheck  ·  unit + integration tests  ·  build  ·  secret scan
@@ -144,7 +189,7 @@ deletable.
 
 ## Roadmap
 
-Phase 0 Architecture ✅ · 1 Foundation · 2 Fleet Command · 3 Operations · 4 Environmental
+Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command · 3 Operations · 4 Environmental
 Intelligence · 5 Risk & Alerts · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
 9 Ocean AI · 10 Production Readiness.
 

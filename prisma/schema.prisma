@@ -1,0 +1,779 @@
+// Ocean Command — database schema
+// Reference and rationale: docs/DATABASE.md
+//
+// Prisma 7 removed `url` from the datasource block: the connection string lives
+// in prisma.config.ts (Migrate) and in the driver adapter passed to PrismaClient.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identity (Better Auth owns the shape of these four models) ────────────
+// User/Session/Account/Verification follow Better Auth's expected fields. The
+// password hash lives on Account, not User — that is the library's model, and
+// fighting it would mean reimplementing its credential flow.
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  lastLoginAt   DateTime? @db.Timestamptz(3)
+  archivedAt    DateTime? @db.Timestamptz(3)
+
+  memberships Membership[]
+  sessions    Session[]
+  accounts    Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime @db.Timestamptz(3)
+  ipAddress String?
+  userAgent String?
+  userId    String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  // The organization the user is currently acting in. Server-side on purpose:
+  // a client-writable tenant selection would be a tenant-switching vulnerability.
+  activeOrganizationId String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Tenancy ───────────────────────────────────────────────────────────────
+
+model Organization {
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  timezone   String    @default("America/Sao_Paulo")
+  isDemo     Boolean   @default(false)
+  settings   Json      @default("{}")
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+  archivedAt DateTime? @db.Timestamptz(3)
+
+  memberships Membership[]
+  vessels     Vessel[]
+  locations   Location[]
+  operations  Operation[]
+  assets      Asset[]
+  alerts      Alert[]
+  risks       Risk[]
+  incidents   Incident[]
+  documents   Document[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+enum Role {
+  ADMINISTRATOR
+  OPERATIONS_MANAGER
+  OPERATOR
+  VIEWER
+}
+
+// ─── Fleet ─────────────────────────────────────────────────────────────────
+
+model Vessel {
+  id             String     @id @default(cuid())
+  organizationId String
+  name           String
+  imo            String?
+  mmsi           String?
+  callsign       String?
+  type           VesselType
+  flag           String
+  operator       String?
+  lengthM        Decimal?   @db.Decimal(6, 2)
+  beamM          Decimal?   @db.Decimal(5, 2)
+  draftM         Decimal?   @db.Decimal(5, 2)
+  status         VesselStatus @default(AVAILABLE)
+
+  // Denormalised last known position so the fleet map never scans the history
+  // table. Written in the same transaction that appends to VesselPosition.
+  lastLatitude       Decimal?    @db.Decimal(9, 6)
+  lastLongitude      Decimal?    @db.Decimal(9, 6)
+  lastSpeedKn        Decimal?    @db.Decimal(5, 2)
+  lastHeadingDeg     Int?
+  lastDestination    String?
+  lastPositionAt     DateTime?   @db.Timestamptz(3)
+  lastPositionSource DataSource?
+
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+  archivedAt DateTime? @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  positions    VesselPosition[]
+  assets       Asset[]
+  operations   Operation[]
+  incidents    Incident[]
+  risks        Risk[]
+  alerts       Alert[]
+  documents    Document[]
+
+  @@unique([organizationId, imo])
+  @@unique([organizationId, mmsi])
+  @@index([organizationId, status])
+  @@index([organizationId, archivedAt])
+}
+
+enum VesselType {
+  AHTS
+  PSV
+  OSRV
+  PLSV
+  RSV
+  DSV
+  CSV
+  FPSO
+  DRILLSHIP
+  TUG
+  SUPPLY_VESSEL
+  SUPPORT_VESSEL
+}
+
+enum VesselStatus {
+  IN_OPERATION
+  IN_TRANSIT
+  STANDBY
+  AT_PORT
+  AVAILABLE
+  MAINTENANCE
+  UNAVAILABLE
+}
+
+enum DataSource {
+  REAL
+  SIMULATED
+  DEMO
+}
+
+model VesselPosition {
+  id             String     @id @default(cuid())
+  organizationId String
+  vesselId       String
+  latitude       Decimal    @db.Decimal(9, 6)
+  longitude      Decimal    @db.Decimal(9, 6)
+  speedKn        Decimal?   @db.Decimal(5, 2)
+  headingDeg     Int?
+  courseDeg      Int?
+  destination    String?
+  source         DataSource
+  recordedAt     DateTime   @db.Timestamptz(3)
+
+  vessel Vessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+
+  @@index([vesselId, recordedAt(sort: Desc)])
+  @@index([organizationId, recordedAt(sort: Desc)])
+}
+
+// ─── Geography ─────────────────────────────────────────────────────────────
+
+model Location {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  basin          String?
+  type           LocationType
+  latitude       Decimal      @db.Decimal(9, 6)
+  longitude      Decimal      @db.Decimal(9, 6)
+  waterDepthM    Int?
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  operations   Operation[]
+  observations WeatherObservation[]
+  forecasts    WeatherForecast[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, type])
+}
+
+enum LocationType {
+  FIELD
+  PLATFORM
+  SUBSEA_SITE
+  PORT
+  ANCHORAGE
+  WAYPOINT
+}
+
+// ─── Operations ────────────────────────────────────────────────────────────
+
+model Operation {
+  id             String          @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  description    String?
+  type           OperationType
+  status         OperationStatus @default(PLANNED)
+  priority       Priority        @default(MEDIUM)
+  riskLevel      RiskLevel       @default(LOW)
+  vesselId       String?
+  locationId     String?
+  responsibleId  String?
+  plannedStart   DateTime        @db.Timestamptz(3)
+  plannedEnd     DateTime        @db.Timestamptz(3)
+  actualStart    DateTime?       @db.Timestamptz(3)
+  actualEnd      DateTime?       @db.Timestamptz(3)
+  notes          String?
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vessel       Vessel?          @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  location     Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  events       OperationEvent[]
+  risks        Risk[]
+  incidents    Incident[]
+  alerts       Alert[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status, plannedStart])
+  @@index([organizationId, vesselId, plannedStart])
+}
+
+enum OperationType {
+  ROV_INSPECTION
+  RPAS_INSPECTION
+  CARGO_OPERATION
+  CREW_TRANSFER
+  ANCHOR_HANDLING
+  SUBSEA_INSPECTION
+  SURVEY
+  DIVING_OPERATION
+  MAINTENANCE
+  SUPPLY_OPERATION
+}
+
+enum OperationStatus {
+  PLANNED
+  PREPARING
+  READY
+  IN_PROGRESS
+  SUSPENDED
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model OperationEvent {
+  id             String             @id @default(cuid())
+  organizationId String
+  operationId    String
+  type           OperationEventType
+  fromStatus     OperationStatus?
+  toStatus       OperationStatus?
+  message        String?
+  actorId        String?
+  occurredAt     DateTime           @default(now()) @db.Timestamptz(3)
+
+  operation Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  @@index([operationId, occurredAt(sort: Desc)])
+  @@index([organizationId, occurredAt(sort: Desc)])
+}
+
+enum OperationEventType {
+  CREATED
+  STATUS_CHANGED
+  RESCHEDULED
+  NOTE_ADDED
+  WEATHER_HOLD
+  RESOURCE_CHANGED
+}
+
+// ─── Environment ───────────────────────────────────────────────────────────
+
+model WeatherObservation {
+  id                String     @id @default(cuid())
+  organizationId    String
+  locationId        String
+  observedAt        DateTime   @db.Timestamptz(3)
+  windSpeedKn       Decimal?   @db.Decimal(5, 2)
+  windGustKn        Decimal?   @db.Decimal(5, 2)
+  windDirectionDeg  Int?
+  waveHeightM       Decimal?   @db.Decimal(4, 2)
+  wavePeriodS       Decimal?   @db.Decimal(4, 1)
+  waveDirectionDeg  Int?
+  swellHeightM      Decimal?   @db.Decimal(4, 2)
+  swellPeriodS      Decimal?   @db.Decimal(4, 1)
+  swellDirectionDeg Int?
+  precipitationMm   Decimal?   @db.Decimal(5, 2)
+  visibilityNm      Decimal?   @db.Decimal(5, 2)
+  pressureHpa       Decimal?   @db.Decimal(6, 1)
+  airTempC          Decimal?   @db.Decimal(4, 1)
+  seaTempC          Decimal?   @db.Decimal(4, 1)
+  seaState          Int?
+  source            DataSource
+  provider          String
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, observedAt, provider])
+  @@index([organizationId, observedAt(sort: Desc)])
+}
+
+model WeatherForecast {
+  id               String     @id @default(cuid())
+  organizationId   String
+  locationId       String
+  forecastFor      DateTime   @db.Timestamptz(3)
+  issuedAt         DateTime   @db.Timestamptz(3)
+  windSpeedKn      Decimal?   @db.Decimal(5, 2)
+  windGustKn       Decimal?   @db.Decimal(5, 2)
+  windDirectionDeg Int?
+  waveHeightM      Decimal?   @db.Decimal(4, 2)
+  swellHeightM     Decimal?   @db.Decimal(4, 2)
+  visibilityNm     Decimal?   @db.Decimal(5, 2)
+  precipitationMm  Decimal?   @db.Decimal(5, 2)
+  source           DataSource
+  provider         String
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, forecastFor, provider])
+  @@index([organizationId, forecastFor])
+}
+
+// ─── Risk ──────────────────────────────────────────────────────────────────
+
+model Risk {
+  id             String       @id @default(cuid())
+  organizationId String
+  code           String
+  title          String
+  description    String
+  category       RiskCategory
+  probability    Int
+  impact         Int
+  score          Int
+  level          RiskLevel
+  origin         String?
+  operationId    String?
+  vesselId       String?
+  ownerId        String?
+  status         RiskStatus   @default(OPEN)
+  reviewDate     DateTime?    @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  operation    Operation?   @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  vessel       Vessel?      @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  actions      RiskAction[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status, level])
+  @@index([organizationId, operationId])
+}
+
+enum RiskCategory {
+  SAFETY
+  ENVIRONMENTAL
+  OPERATIONAL
+  TECHNICAL
+  WEATHER
+  SECURITY
+  REGULATORY
+}
+
+enum RiskLevel {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATING
+  MONITORED
+  CLOSED
+  ACCEPTED
+}
+
+model RiskAction {
+  id          String    @id @default(cuid())
+  riskId      String
+  description String
+  ownerId     String?
+  dueDate     DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+
+  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([riskId])
+}
+
+// ─── Alerts ────────────────────────────────────────────────────────────────
+
+model Alert {
+  id             String        @id @default(cuid())
+  organizationId String
+  code           String
+  type           AlertType
+  severity       AlertSeverity
+  status         AlertStatus   @default(UNREAD)
+  title          String
+  description    String
+  sourceModule   String
+  sourceRef      String?
+  vesselId       String?
+  operationId    String?
+  assetId        String?
+  assigneeId     String?
+  acknowledgedAt DateTime?     @db.Timestamptz(3)
+  acknowledgedBy String?
+  resolvedAt     DateTime?     @db.Timestamptz(3)
+  resolvedBy     String?
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vessel       Vessel?      @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  operation    Operation?   @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  asset        Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  events       AlertEvent[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status, severity, createdAt(sort: Desc)])
+  @@index([organizationId, vesselId, status])
+  @@index([organizationId, sourceModule, sourceRef])
+  // One *open* alert per source is a partial unique index — see the migration.
+}
+
+enum AlertType {
+  WEATHER
+  VESSEL
+  OPERATION
+  ASSET
+  SAFETY
+  RISK
+  SYSTEM
+}
+
+enum AlertSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  UNREAD
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+model AlertEvent {
+  id         String         @id @default(cuid())
+  alertId    String
+  type       AlertEventType
+  actorId    String?
+  note       String?
+  occurredAt DateTime       @default(now()) @db.Timestamptz(3)
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId, occurredAt(sort: Desc)])
+}
+
+enum AlertEventType {
+  RAISED
+  ESCALATED
+  ASSIGNED
+  ACKNOWLEDGED
+  RESOLVED
+  REOPENED
+  COMMENTED
+}
+
+// ─── Assets ────────────────────────────────────────────────────────────────
+
+model Asset {
+  id                String           @id @default(cuid())
+  organizationId    String
+  tag               String
+  name              String
+  type              AssetType
+  vesselId          String?
+  manufacturer      String?
+  model             String?
+  serialNumber      String?
+  status            AssetStatus      @default(HEALTHY)
+  condition         Int?
+  criticality       AssetCriticality @default(MEDIUM)
+  operatingHours    Decimal          @default(0) @db.Decimal(10, 1)
+  lastMaintenanceAt DateTime?        @db.Timestamptz(3)
+  nextMaintenanceAt DateTime?        @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @db.Timestamptz(3)
+  archivedAt        DateTime?        @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vessel       Vessel?             @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  maintenance  MaintenanceRecord[]
+  alerts       Alert[]
+  incidents    Incident[]
+
+  @@unique([organizationId, tag])
+  @@index([organizationId, status, criticality])
+  @@index([organizationId, vesselId])
+  @@index([organizationId, nextMaintenanceAt])
+}
+
+enum AssetType {
+  CRANE
+  WINCH
+  PROPULSION
+  GENERATOR
+  THRUSTER
+  ROV
+  RPAS
+  COMMUNICATION_SYSTEM
+  NAVIGATION_EQUIPMENT
+  DP_SYSTEM
+  FIRE_SYSTEM
+  OTHER
+}
+
+enum AssetStatus {
+  HEALTHY
+  ATTENTION
+  MAINTENANCE_REQUIRED
+  FAILURE
+}
+
+enum AssetCriticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model MaintenanceRecord {
+  id             String          @id @default(cuid())
+  assetId        String
+  type           MaintenanceType
+  performedAt    DateTime        @db.Timestamptz(3)
+  hoursAtService Decimal?        @db.Decimal(10, 1)
+  description    String
+  performedBy    String?
+  downtimeH      Decimal?        @db.Decimal(6, 2)
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, performedAt(sort: Desc)])
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  OVERHAUL
+}
+
+// ─── Incidents ─────────────────────────────────────────────────────────────
+
+model Incident {
+  id               String           @id @default(cuid())
+  organizationId   String
+  code             String
+  occurredAt       DateTime         @db.Timestamptz(3)
+  reportedAt       DateTime         @default(now()) @db.Timestamptz(3)
+  vesselId         String?
+  operationId      String?
+  assetId          String?
+  locationText     String?
+  latitude         Decimal?         @db.Decimal(9, 6)
+  longitude        Decimal?         @db.Decimal(9, 6)
+  category         IncidentCategory
+  severity         IncidentSeverity
+  status           IncidentStatus   @default(REPORTED)
+  description      String
+  impact           String?
+  peopleInvolved   Int              @default(0)
+  immediateActions String?
+  probableCause    String?
+  investigation    String?
+  reportedById     String?
+  investigatorId   String?
+  closedAt         DateTime?        @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vessel       Vessel?          @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  operation    Operation?       @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  asset        Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  actions      IncidentAction[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status, severity])
+  @@index([organizationId, occurredAt(sort: Desc)])
+}
+
+enum IncidentCategory {
+  PERSONAL_INJURY
+  NEAR_MISS
+  EQUIPMENT_DAMAGE
+  ENVIRONMENTAL_SPILL
+  DROPPED_OBJECT
+  COLLISION
+  FIRE
+  LOSS_OF_POSITION
+  SECURITY
+  PROCESS_SAFETY
+  OTHER
+}
+
+enum IncidentSeverity {
+  NEGLIGIBLE
+  MINOR
+  MODERATE
+  MAJOR
+  SEVERE
+}
+
+enum IncidentStatus {
+  REPORTED
+  UNDER_INVESTIGATION
+  ACTION_REQUIRED
+  RESOLVED
+  CLOSED
+}
+
+model IncidentAction {
+  id          String    @id @default(cuid())
+  incidentId  String
+  description String
+  ownerId     String?
+  dueDate     DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+}
+
+// ─── Documents & audit ─────────────────────────────────────────────────────
+
+model Document {
+  id             String           @id @default(cuid())
+  organizationId String
+  title          String
+  category       DocumentCategory
+  storageKey     String
+  mimeType       String
+  sizeBytes      Int
+  vesselId       String?
+  uploadedById   String
+  validFrom      DateTime?        @db.Timestamptz(3)
+  validUntil     DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vessel       Vessel?      @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, vesselId])
+  @@index([organizationId, validUntil])
+}
+
+enum DocumentCategory {
+  CERTIFICATE
+  PROCEDURE
+  REPORT
+  DRAWING
+  MANUAL
+  PERMIT
+  OTHER
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String
+  before         Json?
+  after          Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, actorId, createdAt(sort: Desc)])
+}

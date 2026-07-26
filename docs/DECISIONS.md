@@ -24,7 +24,7 @@ Full reasoning for the structural ones lives in [`adr/`](./adr/).
 | Area | Chosen | Version | Runner-up | Why the runner-up lost |
 | --- | --- | --- | --- | --- |
 | Framework | Next.js (App Router) | 16.2.12 | Remix / SPA + API | One deploy, one type system, Server Components suit read-heavy pages ([ADR-001](./adr/001-nextjs-modular-monolith.md)). |
-| Language | TypeScript `strict` | 7.0.2 | — | Non-negotiable. `any` is a lint error; `noUncheckedIndexedAccess` on. |
+| Language | TypeScript `strict` | 5.9 | TypeScript 7.0.2 | **Revised in Phase 1.** 7.0.2 is the current release, but `eslint-config-next` and the type-aware lint rules are built against 5.x, and an identity/tooling break at the foundation phase costs more than the compiler speed gains. `any` is a lint error; `noUncheckedIndexedAccess` on. Revisit when the ESLint toolchain follows. |
 | UI runtime | React | 19.2.8 | — | Required by Next 16. |
 | Styling | Tailwind CSS | 4.3.3 | CSS Modules | Density and consistency at speed; tokens keep it from becoming soup. |
 | Components | shadcn/ui | (copied in) | MUI, Mantine | Code we own and restyle, no theme fight, no runtime dependency. MUI's Material identity is wrong for a command center. |
@@ -39,7 +39,8 @@ Full reasoning for the structural ones lives in [`adr/`](./adr/).
 | Tests | Vitest + Testing Library | 4.1.10 | Jest | Native ESM/TS, materially faster; Playwright for E2E in Phase 10. |
 | Client state | Server Components + `useState`; TanStack Query only where polling exists | 5.101.4 | Redux, Zustand everywhere | Most state is server state. A global store here would mostly cache what the server already owns. |
 | Logging | Pino | latest | winston | Structured JSON, low overhead. |
-| Package manager | pnpm | latest | npm | Disk efficiency, strict resolution, fast CI. |
+| Package manager | npm | 11 | pnpm | **Revised in Phase 1.** pnpm needs `corepack enable`, which fails with `EPERM` on this machine because it writes shims into `C:\Program Files\nodejs` — so pnpm would require an elevated shell for every contributor on Windows. npm 11 has a deterministic lockfile and workspaces, and pnpm's disk savings do not pay for a package manager that needs administrator rights to exist. |
+| Password hashing | `@node-rs/argon2` | 2.0.2 | Better Auth's built-in scrypt | Argon2id is OWASP's first recommendation; the package ships prebuilt binaries, so there is no compile step. Plugged into Better Auth through `emailAndPassword.password.hash/verify`. |
 
 **Versions verified against the npm registry on 2026-07-26**, not recalled. All are current
 majors, which is itself a risk (risk #10 in `ARCHITECTURE.md`): they are pinned exactly and the
@@ -91,4 +92,5 @@ or from meaning "next week, out of curiosity".
 | Date | Decision |
 | --- | --- |
 | 2026-07-26 | Phase 0 closed: ADRs 001–007 accepted, reference schema and domain rules specified, roadmap fixed. Project started from scratch — no code or design carried over from any previous attempt. |
+| 2026-07-26 | **Phase 1 delivered.** Three decisions were revised against reality, each recorded in the table above with its evidence: pnpm → npm (corepack `EPERM`), TypeScript 7 → 5.9 (lint toolchain), PostgreSQL image pinned exactly (a floating tag restarted the container against a data directory the newer server refused to open). Two design points survived contact with the code and are worth noting: Better Auth stores the credential on `Account`, not `User`, so `User.passwordHash` was dropped; and `Membership` had to join `TENANT_MODELS` — the registry test caught that omission, which would have let one organization list another's members. |
 | 2026-07-26 | Reference schema validated with `prisma@7.9.0 validate`. Two consequences worth recording: Prisma 7 **removed `url` from the `datasource` block**, so the connection string moves to `prisma.config.ts` (Migrate) and to a **driver adapter** (`@prisma/adapter-pg` + `pg`) passed to `PrismaClient`; and the schema is verified to parse rather than assumed to. Documenting a schema that does not compile would be the same failure this project criticises elsewhere. |

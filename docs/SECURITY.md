@@ -1,7 +1,7 @@
 # Ocean Command — Security Architecture
 
-> Status: **Phase 0 — design**. Controls described here are enforced from Phase 1 onwards.
-> Anything not yet implemented is marked `Planned`.
+> Status: **Phase 1 — enforced.** The control status table in §11 says what is implemented and
+> what is not, including the gaps. Nothing here is described as active unless that table agrees.
 
 ---
 
@@ -32,9 +32,9 @@ that is cheap to avoid at Phase 0. See [ADR-003](./adr/003-authentication.md).
 | --- | --- |
 | Method | E-mail + password for the MVP; OAuth (GitHub/Google) is a drop-in later. |
 | Password hashing | Argon2id (memory-hard). Never bcrypt-with-defaults, never SHA-anything. |
-| Password policy | Minimum 12 characters, checked against a common-password list. No forced rotation, no composition rules — they push people to `Password1!`. |
+| Password policy | Minimum 12 characters (enforced). No forced rotation, no composition rules — they push people to `Password1!`. A common-password check is intended and **not yet implemented** — see §11. |
 | Session | Opaque token in an `httpOnly`, `Secure`, `SameSite=Lax` cookie. Server-side `Session` rows, so revocation is immediate. No JWT: a stateless token cannot be revoked when a coordinator's account is compromised mid-shift. |
-| Session lifetime | 8 hours (one shift), sliding renewal, absolute cap 24 h. |
+| Session lifetime | 8 hours (one shift) with sliding renewal every hour. No absolute cap yet: Better Auth's `expiresIn`/`updateAge` express the sliding window, and a hard ceiling needs its own check. |
 | Rate limiting | 5 failed sign-ins per account per 15 min, plus per-IP limiting on the auth routes. Generic error message — never "user not found". |
 | Sign-out | Deletes the session row; all tabs lose access on the next request. |
 
@@ -221,10 +221,38 @@ document says so rather than inventing one.
 | Control | Status |
 | --- | --- |
 | Threat model, RBAC matrix, tenant-context design | ✅ Phase 0 |
-| Auth, sessions, password hashing, env validation | 🔜 Phase 1 |
-| Tenant-scoped data access + isolation tests | 🔜 Phase 1 |
-| Audit log on every mutation | 🔜 Phase 1 |
-| CSP, security headers, rate limiting | 🔜 Phase 1 |
-| Object-level authorization across all modules | 🔜 Phases 2–7 |
+| Auth, database sessions, Argon2id, env validation | ✅ Phase 1 |
+| Tenant-scoped data access + isolation tests | ✅ Phase 1 |
+| Audit log inside the mutation transaction, with redaction | ✅ Phase 1 |
+| Security headers + nonce-based CSP + sign-in rate limiting | ✅ Phase 1 |
+| Object-level authorization across all modules | 🚧 Phases 2–7 (the gate exists and is tested; each module wires it as it lands) |
 | AI tool sandboxing | 🔜 Phase 9 |
 | Append-only DB grants, RLS backstop, pen-test pass | 🔜 Phase 10 |
+
+### What Phase 1 actually proved
+
+Verified against a running instance, not asserted:
+
+* A wrong password and an unknown e-mail return the same 401 and the same message; the sixth
+  attempt within 15 minutes returns 429.
+* `/command-center` without a session redirects to sign-in. The check is in the layout, not the
+  middleware, because middleware sees a cookie and a cookie is not a session.
+* Tenant isolation: another organization cannot read, update or delete a record by id, and a
+  `create` naming a foreign `organizationId` is overruled to the caller's own.
+* The navigation and the Command Center's module list are both filtered by permission. The
+  first version filtered only the sidebar — an Operator could see that an Administration module
+  existed. Caught by testing the rendered page for each of the four roles rather than trusting the
+  code path.
+
+### Known gaps, stated rather than implied
+
+* **Passwords are not checked against a common-password list yet.** The 12-character minimum is
+  enforced; the breach-list check named in §2 is not written.
+* **Rate-limit state is in memory.** It resets when the process restarts, and it does not span
+  instances. Fine for one process; needs shared storage before there are several.
+* **`AuditLog` is append-only by convention, not by grant.** No update or delete path exists in
+  the application, but the database role can still do both. The `INSERT`/`SELECT`-only grant is
+  Phase 10.
+* **No E2E test covers the sign-in flow.** It was verified by hand against a running server this
+  phase; Playwright is Phase 10, so until then a regression here would be caught by a person, not
+  by CI.

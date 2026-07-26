@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/*
+ * Ocean Command design tokens.
+ *
+ * Decided before any screen was built, on purpose: a command center that adopts
+ * the default component-library look reads as a generic admin template, which is
+ * failure mode #9 in docs/ARCHITECTURE.md.
+ *
+ * Dark only. This is a 24/7 operations room surface, not a marketing site, and a
+ * light theme nobody uses is a second theme to keep correct forever.
+ */
+
+@theme {
+  /* Surfaces: deep, slightly blue — instrument panel, not pure black. */
+  --color-surface: #070e17;
+  --color-surface-raised: #0c1826;
+  --color-surface-overlay: #132234;
+  --color-surface-hover: #182b40;
+
+  --color-line: #1d3048;
+  --color-line-strong: #2a4362;
+
+  --color-ink: #e8f0f8;
+  --color-ink-muted: #93a9c2;
+  --color-ink-faint: #5f758f;
+
+  /* Accent reserved for interaction and the live/active state. Never decoration. */
+  --color-accent: #22d3ee;
+  --color-accent-strong: #0891b2;
+  --color-accent-soft: #0e3a47;
+
+  /* Operational status. These four are load-bearing: they are the vocabulary of
+     the status panel, the readiness bands and the alert severities. */
+  --color-normal: #10b981;
+  --color-attention: #fbbf24;
+  --color-warning: #fb923c;
+  --color-critical: #f43f5e;
+  --color-info: #38bdf8;
+
+  --color-normal-soft: #06301f;
+  --color-attention-soft: #3a2a05;
+  --color-warning-soft: #3d2005;
+  --color-critical-soft: #40101d;
+  --color-info-soft: #0a2c3f;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Tabular figures for anything an operator compares column to column. */
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+  --radius-panel: 0.5rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Visible focus everywhere. Keyboard navigation is a requirement, and an
+     operations room is exactly where someone works without a mouse. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
+}
+
+@utility numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
