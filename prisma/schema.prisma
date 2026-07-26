@@ -135,6 +135,24 @@ enum Role {
   VIEWER
 }
 
+/// Atomic allocation of human-readable operation codes.
+///
+/// Reading MAX(code) and retrying on conflict does not survive concurrency: with
+/// N simultaneous callers the worst case needs N attempts, so it fails exactly
+/// when the product is busy. One row per (organization, year), incremented with a
+/// single upsert, serialises only the allocation — which is the narrowest lock
+/// that solves it.
+///
+/// Sequences may show gaps when a transaction allocates a code and then rolls
+/// back. That is normal for a sequence and preferable to a duplicate.
+model OperationCounter {
+  organizationId String
+  year           Int
+  lastSequence   Int    @default(0)
+
+  @@id([organizationId, year])
+}
+
 // ─── Fleet ─────────────────────────────────────────────────────────────────
 
 model Vessel {

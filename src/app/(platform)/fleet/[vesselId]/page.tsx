@@ -8,6 +8,14 @@ import { EmptyState } from '@/components/shared/states'
 import { Panel, PanelBody, PanelHeader } from '@/components/ui/panel'
 import { VesselStatusControl } from '@/features/fleet/components/vessel-status-control'
 import { getVessel } from '@/features/fleet/queries/get-vessel'
+import {
+  DelayBadge,
+  OperationStatusBadge,
+} from '@/features/operations/components/operation-badges'
+import {
+  listVesselOperations,
+  type OperationListItem,
+} from '@/features/operations/queries/list-operations'
 import { can } from '@/lib/auth/authorize'
 import { requireTenantContext } from '@/lib/auth/tenant-context'
 import { cn } from '@/lib/utils'
@@ -21,7 +29,7 @@ import { cn } from '@/lib/utils'
  */
 const TABS = [
   { id: 'overview', label: 'Overview', phase: null },
-  { id: 'operations', label: 'Operations', phase: 3 },
+  { id: 'operations', label: 'Operations', phase: null },
   { id: 'assets', label: 'Assets', phase: 6 },
   { id: 'alerts', label: 'Alerts', phase: 5 },
   { id: 'incidents', label: 'Incidents', phase: 7 },
@@ -52,6 +60,10 @@ export default async function VesselDetailPage({
   if (!vessel) notFound()
 
   const active: TabId = TABS.some((entry) => entry.id === tab) ? (tab as TabId) : 'overview'
+
+  // Only fetched for the tab that shows it: an unrelated tab should not pay for
+  // a query nobody is going to read.
+  const operations = active === 'operations' ? await listVesselOperations(ctx, vessel.id) : []
 
   return (
     <div className="space-y-4">
@@ -102,8 +114,9 @@ export default async function VesselDetailPage({
       </nav>
 
       {active === 'overview' ? <Overview vessel={vessel} canUpdateStatus={can(ctx, 'vessel:status_update')} /> : null}
+      {active === 'operations' ? <Operations operations={operations} /> : null}
       {active === 'history' ? <History vessel={vessel} /> : null}
-      {active !== 'overview' && active !== 'history' ? (
+      {active !== 'overview' && active !== 'history' && active !== 'operations' ? (
         <Panel>
           <EmptyState
             title={`${TABS.find((entry) => entry.id === active)!.label} is not built yet`}
@@ -180,6 +193,49 @@ function Overview({
         ) : null}
       </div>
     </div>
+  )
+}
+
+function Operations({ operations }: { operations: OperationListItem[] }) {
+  return (
+    <Panel>
+      <PanelHeader
+        title="Operations"
+        description={`${operations.length} most recent, newest planned first`}
+      />
+      <PanelBody className="p-0">
+        {operations.length === 0 ? (
+          <EmptyState
+            title="No operations for this vessel"
+            description="Operations assigned to this vessel appear here."
+          />
+        ) : (
+          <ul className="divide-line divide-y">
+            {operations.map((operation) => (
+              <li key={operation.id} className="flex items-center gap-3 px-4 py-2.5">
+                <Link
+                  href={`/operations/${operation.id}`}
+                  className="text-accent numeric shrink-0 text-xs hover:underline"
+                >
+                  {operation.code}
+                </Link>
+                <div className="min-w-0">
+                  <p className="text-ink truncate text-xs">{operation.name}</p>
+                  <p className="text-ink-faint numeric text-[11px]">
+                    {operation.plannedStart.toISOString().slice(0, 16).replace('T', ' ')}Z →{' '}
+                    {operation.plannedEnd.toISOString().slice(0, 16).replace('T', ' ')}Z
+                  </p>
+                </div>
+                <span className="ml-auto flex shrink-0 items-center gap-2">
+                  <DelayBadge isDelayed={operation.isDelayed} />
+                  <OperationStatusBadge status={operation.status} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PanelBody>
+    </Panel>
   )
 }
 

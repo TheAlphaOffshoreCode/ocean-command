@@ -10,15 +10,15 @@ down and testable.
 
 ## Current state — read this first
 
-**Phases 0 (Architecture), 1 (Foundation) and 2 (Fleet Command) are complete.** You can run the
-application, sign in as any of four roles, and watch the fleet on a chart with simulated AIS
-positions. Operations, weather, risk, alerts, assets and incidents are **not built yet** — phases 3
-to 8.
+**Phases 0 to 3 are complete.** You can run the application, sign in as any of four roles, watch the
+fleet on a chart with simulated AIS, and move operations through an enforced lifecycle with
+plan-versus-actual and an activity feed. Weather, risk, alerts, assets and incidents are **not built
+yet** — phases 4 to 8.
 
 | Capability | Status |
 | --- | --- |
 | Architecture, domain model, decision rules, threat model | ✅ [docs/](docs/) |
-| PostgreSQL schema — 24 tables, 2 migrations, CHECK constraints, partial unique index | ✅ |
+| PostgreSQL schema — 25 tables, 3 migrations, CHECK constraints, partial unique index | ✅ |
 | Authentication — e-mail/password, Argon2id, database sessions, rate limiting | ✅ |
 | RBAC — 4 roles, 36 permissions, one matrix, checked server-side | ✅ |
 | Multi-tenancy — `TenantContext` required by every data access | ✅ |
@@ -27,7 +27,9 @@ to 8.
 | Deterministic idempotent seed — 2 organizations, 4 roles, 8 vessels, 6 locations | ✅ |
 | **Fleet Command** — chart, vessel list, side panel, vessel detail with tabs | ✅ |
 | **Simulated AIS** — deterministic provider, position history, scheduled refresh | ✅ |
-| Operations, weather, risk, alerts, assets, incidents, analytics | 🔜 Phases 3–8 |
+| **Operations Center** — enforced lifecycle, plan vs. actual timeline, activity feed | ✅ |
+| **Vessel double-booking refused** with the conflicting operation named | ✅ |
+| Weather, risk, alerts, assets, incidents, analytics | 🔜 Phases 4–8 |
 | Ocean AI | 🔜 Phase 9 |
 | E2E tests, metrics, deployment | 🔜 Phase 10 |
 
@@ -40,12 +42,17 @@ light, because three of the four inputs to that score do not exist before phase 
 ```text
 lint       ✓ no errors
 typecheck  ✓ no errors
-test       ✓ 78 passed (10 files)
-build      ✓ 9 routes
+test       ✓ 118 passed (13 files)
+build      ✓ 11 routes
 ```
 
-Against a real PostgreSQL 17: both migrations apply to an empty database, all 10 CHECK constraints
-and the partial unique index exist, and the seed is idempotent.
+Against a real PostgreSQL 17: all three migrations apply to an empty database, all 10 CHECK
+constraints and the partial unique index exist, and the seed is idempotent.
+
+An operation walks Planned → Preparing → Ready → In Progress → Completed with the actual start
+stamped once and the actual end on completion, four events recorded, and Completed → Planned refused
+with *"Completed is a final status."* Twenty operations created concurrently receive twenty
+contiguous codes.
 
 All four seeded roles sign in and receive a shell that matches their permissions — a Viewer sees 10
 permissions and no Administration module, an Operator 17 with `alert:acknowledge` but not
@@ -212,7 +219,7 @@ deletable.
 
 ## Roadmap
 
-Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command ✅ · 3 Operations · 4 Environmental
+Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command ✅ · 3 Operations ✅ · 4 Environmental
 Intelligence · 5 Risk & Alerts · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
 9 Ocean AI · 10 Production Readiness.
 

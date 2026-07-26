@@ -2,9 +2,9 @@
 
 Legend: ✅ Implemented · 🚧 In Development · 🔜 Planned
 
-**Current state: Phases 0, 1 and 2 complete.** The application runs, four roles sign in, every
-mutation is audited, and the fleet is visible on a chart with simulated AIS. Operations start at
-phase 3.
+**Current state: Phases 0 to 3 complete.** The application runs, four roles sign in, every mutation
+is audited, the fleet is on a chart with simulated AIS, and operations move through an enforced
+lifecycle with plan-versus-actual and an activity feed. Weather starts at phase 4.
 
 ---
 
@@ -149,7 +149,7 @@ rather than a passed one.
 
 ---
 
-## Phase 3 — Operations Center 🔜
+## Phase 3 — Operations Center ✅
 
 *"What is happening with my operations?"*
 
@@ -162,8 +162,45 @@ rather than a passed one.
 * Global activity feed reading `OperationEvent` (the first consumer of the events table).
 * Tests: every legal and illegal transition, code generation under concurrency.
 
-**Acceptance:** an operator moves an operation Planned → Preparing → In Progress → Completed,
-each step timestamped, attributed and visible in the feed; Completed → Planned is refused.
+**Acceptance — met, exercised against the database on 2026-07-26:**
+
+```text
+initial:  PLANNED       actualStart=null
+→ PREPARING             actualStart=null   actualEnd=null
+→ READY                 actualStart=null   actualEnd=null
+→ IN_PROGRESS           actualStart=21:38  actualEnd=null
+→ COMPLETED             actualStart=21:38  actualEnd=21:38
+COMPLETED → PLANNED refused: "Completed is a final status. Create a new
+operation instead of reopening this one."
+4 events recorded
+```
+
+* `/operations` renders the 20 seeded operations, reports 4 under way and 4 delayed, and draws
+  plan-versus-actual bars against a now line.
+* The detail page for an operation that is `IN_PROGRESS` offers exactly **Suspended** and
+  **Completed** — the buttons come from the same transition table the server enforces, so the UI
+  cannot offer a move the action refuses.
+* The vessel's Operations tab lists that vessel's three operations; the activity feed appears on
+  both the operations page and the Command Center.
+* 118 tests, including every legal and illegal transition, the timestamp rules, half-open window
+  comparison, and a tenant-isolation suite for the operations queries.
+
+**The test that changed the implementation.** Codes were allocated by reading the highest existing
+code and retrying on conflict. With ten concurrent creates that **failed**: each retry round only
+lets one caller through, so the worst case needs as many attempts as there are callers — it breaks
+exactly when the product is busy. Replaced by an `OperationCounter` row per (organization, year)
+incremented in a single upsert, which serialises only the allocation. The test now runs **twenty**
+concurrent creates and gets twenty contiguous codes.
+
+**Known limitation, stated rather than implied.** The double-booking check runs inside the writing
+transaction, but PostgreSQL's default isolation still lets two concurrent transactions each read a
+clear schedule and both commit. Closing that needs an exclusion constraint over a time range; until
+then the check catches the case that actually happens (a person planning against a schedule they can
+see) and not a simultaneous double insert.
+
+**Deferred:** create and edit forms for operations. The actions, validation, scheduling rules and
+audit exist and are tested; what is missing is a planning screen, and it belongs with the admin
+module rather than bolted onto a read-only view.
 
 ---
 

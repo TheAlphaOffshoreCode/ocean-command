@@ -22,6 +22,9 @@ export const TENANT_MODELS = new Set([
   'Membership',
   'Vessel',
   'VesselPosition',
+  // Written through raw SQL for atomicity, so the extension never sees it — but it
+  // is tenant-owned, and the registry test checks the schema, not the call sites.
+  'OperationCounter',
   'Location',
   'Operation',
   'OperationEvent',

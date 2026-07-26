@@ -136,7 +136,16 @@ The registry in `src/lib/db/tenant.ts` is checked against this schema by
 `tests/unit/tenant-models.test.ts`, which parses the file and fails if a model with an
 `organizationId` column is not registered for scoping. That test found `Membership` missing.
 
-### 4.3 Denormalised last position
+### 4.3 OperationCounter
+
+Human-readable codes (`OP-2026-0042`) are allocated from one row per (organization, year),
+incremented by a single upsert. The obvious alternative — read `MAX(code)`, increment, retry on
+conflict — was implemented first and **failed a ten-way concurrency test**: every retry round only
+lets one caller through, so the worst case needs as many attempts as there are callers, and it breaks
+exactly when the product is busy. Sequences may show gaps when a transaction takes a code and rolls
+back; a gap is much cheaper than a duplicate.
+
+### 4.4 Denormalised last position
 
 `Vessel` carries `lastLatitude`/`lastLongitude`/`lastPositionAt`/`lastPositionSource` alongside the
 `VesselPosition` history. The fleet map reads every vessel's current position on each render, and

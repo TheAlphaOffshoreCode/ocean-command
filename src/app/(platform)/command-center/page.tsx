@@ -3,6 +3,8 @@ import { CircleDot } from 'lucide-react'
 
 import { Panel, PanelBody, PanelHeader } from '@/components/ui/panel'
 import { EmptyState } from '@/components/shared/states'
+import { ActivityFeed } from '@/features/operations/components/activity-feed'
+import { getActivityFeed } from '@/features/operations/queries/activity-feed'
 import { NAVIGATION } from '@/config/navigation'
 import { can } from '@/lib/auth/authorize'
 import { permissionsForRole } from '@/lib/auth/permissions'
@@ -13,6 +15,7 @@ export const metadata: Metadata = { title: 'Command Center' }
 export default async function CommandCenterPage() {
   const ctx = await requireTenantContext()
   const permissions = permissionsForRole(ctx.role)
+  const activity = await getActivityFeed(ctx, 10)
 
   // Filtered by permission, exactly like the sidebar. Listing modules the caller
   // cannot open would tell an operator that an administration area exists and
@@ -50,6 +53,16 @@ export default async function CommandCenterPage() {
               </p>
             </div>
           </div>
+        </PanelBody>
+      </Panel>
+
+      <Panel>
+        <PanelHeader
+          title="Activity"
+          description="Operation events, newest first"
+        />
+        <PanelBody className="p-0">
+          <ActivityFeed entries={activity} />
         </PanelBody>
       </Panel>
 
