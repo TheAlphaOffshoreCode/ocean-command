@@ -34,6 +34,22 @@ export function authorize(
   }
 }
 
+/**
+ * Same checks, but returns the resource so callers stop needing `!` after it.
+ *
+ * The order is what matters and is preserved: role first, ownership second. A
+ * user without the permission gets Forbidden for every id, so the error itself
+ * cannot be used to tell "exists elsewhere" from "does not exist".
+ */
+export function authorizeResource<T extends OwnedResource>(
+  ctx: TenantContext,
+  permission: Permission,
+  resource: T | null,
+): T {
+  authorize(ctx, permission, resource)
+  return resource as T
+}
+
 /** Non-throwing variant, for deciding whether to render a control. */
 export function can(ctx: TenantContext, permission: Permission): boolean {
   return roleHasPermission(ctx.role, permission)

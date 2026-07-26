@@ -10,9 +10,10 @@ down and testable.
 
 ## Current state — read this first
 
-**Phases 0 (Architecture) and 1 (Foundation) are complete.** You can run the application, sign in
-as any of four roles, and every mutation is audited. The operational modules — fleet, operations,
-weather, risk, alerts, assets, incidents — are **not built yet**; they are phases 2 to 8.
+**Phases 0 (Architecture), 1 (Foundation) and 2 (Fleet Command) are complete.** You can run the
+application, sign in as any of four roles, and watch the fleet on a chart with simulated AIS
+positions. Operations, weather, risk, alerts, assets and incidents are **not built yet** — phases 3
+to 8.
 
 | Capability | Status |
 | --- | --- |
@@ -23,8 +24,10 @@ weather, risk, alerts, assets, incidents — are **not built yet**; they are pha
 | Multi-tenancy — `TenantContext` required by every data access | ✅ |
 | Audit trail — written inside the mutation's transaction | ✅ |
 | Application shell — navigation filtered by role, `DEMO DATA` marker | ✅ |
-| Deterministic idempotent seed — 2 organizations, one user per role | ✅ |
-| Fleet, operations, weather, risk, alerts, assets, incidents, analytics | 🔜 Phases 2–8 |
+| Deterministic idempotent seed — 2 organizations, 4 roles, 8 vessels, 6 locations | ✅ |
+| **Fleet Command** — chart, vessel list, side panel, vessel detail with tabs | ✅ |
+| **Simulated AIS** — deterministic provider, position history, scheduled refresh | ✅ |
+| Operations, weather, risk, alerts, assets, incidents, analytics | 🔜 Phases 3–8 |
 | Ocean AI | 🔜 Phase 9 |
 | E2E tests, metrics, deployment | 🔜 Phase 10 |
 
@@ -37,15 +40,22 @@ light, because three of the four inputs to that score do not exist before phase 
 ```text
 lint       ✓ no errors
 typecheck  ✓ no errors
-test       ✓ 26 passed (5 files)
-build      ✓ 6 routes
+test       ✓ 66 passed (9 files)
+build      ✓ 9 routes
 ```
 
-Plus, against a real PostgreSQL 17: both migrations apply to an empty database, all 10 CHECK
-constraints and the partial unique index exist, the seed is idempotent (run twice → same counts),
-and all four seeded roles sign in and receive a shell that matches their permissions — a Viewer
-sees 10 permissions and no Administration module, an Operator 17 with `alert:acknowledge` but not
-`alert:resolve`, a Manager 30, an Administrator 36.
+Against a real PostgreSQL 17: both migrations apply to an empty database, all 10 CHECK constraints
+and the partial unique index exist, and the seed is idempotent.
+
+All four seeded roles sign in and receive a shell that matches their permissions — a Viewer sees 10
+permissions and no Administration module, an Operator 17 with `alert:acknowledge` but not
+`alert:resolve`, a Manager 30, an Administrator 36. A wrong password and an unknown e-mail return
+the same 401; the sixth attempt in 15 minutes returns 429.
+
+The fleet view reports **6 of 8 vessels reporting**, and the two that do not are the ones the domain
+excludes from tracking: one alongside for maintenance, one FPSO on station. Positions advance
+between syncs, every one is labelled `Simulated`, and two back-to-back syncs record **0** new history
+rows — the recording rule working, not a failure.
 
 ---
 
@@ -125,8 +135,8 @@ accept, making a forgotten tenant filter a type error rather than a data leak.
 ## Stack
 
 Next.js 16 · React 19 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`) · Tailwind 4 ·
-PostgreSQL 17 · Prisma 7 · Better Auth · Argon2id · Zod 4 · Vitest · npm.
-Leaflet and Recharts arrive with the modules that need them (phases 2 and 8).
+PostgreSQL 17 · Prisma 7 · Better Auth · Argon2id · Zod 4 · Leaflet · Vitest · npm.
+Recharts arrives with the charts that need it (phase 4).
 
 Every choice, and the alternative it beat, is in [DECISIONS.md](docs/DECISIONS.md) — including
 three decisions revised during phase 1 because the environment disagreed with the plan.
@@ -164,6 +174,19 @@ A second organization, `northern-marine`, is seeded with one user and no data. I
 anything: it exists so the tenant-isolation tests can *prove* that one organization cannot read
 another's records instead of asserting it.
 
+### Getting positions onto the chart
+
+Vessels have no position until AIS is synced, and a page load must not write history, so the sync is
+explicit:
+
+* **In the app** — the "Sync AIS" button in Fleet Command (needs `vessel:status_update`, so any role
+  above Viewer).
+* **Scheduled** — `POST /api/cron/ais-sync` with `Authorization: Bearer $CRON_SECRET`. In production
+  it refuses to run at all when that variable is unset, rather than running unauthenticated.
+
+Only vessels the domain considers trackable report: an FPSO on station and a hull alongside for
+maintenance are excluded, which is why the fleet header reads 6 of 8.
+
 ## Quality gate
 
 No phase is considered done until all of these pass in CI:
@@ -189,7 +212,7 @@ deletable.
 
 ## Roadmap
 
-Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command · 3 Operations · 4 Environmental
+Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command ✅ · 3 Operations · 4 Environmental
 Intelligence · 5 Risk & Alerts · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
 9 Ocean AI · 10 Production Readiness.
 

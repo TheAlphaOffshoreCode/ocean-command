@@ -28,7 +28,7 @@ export type NavItem = {
   icon: LucideIcon
   permission: Permission
   question: string
-} & ({ href: '/command-center' } | { phase: number })
+} & ({ href: '/command-center' | '/fleet' } | { phase: number })
 
 export const NAVIGATION: NavItem[] = [
   {
@@ -43,7 +43,7 @@ export const NAVIGATION: NavItem[] = [
     icon: Ship,
     permission: 'fleet:read',
     question: 'What is happening with my fleet?',
-    phase: 2,
+    href: '/fleet',
   },
   {
     label: 'Operations',

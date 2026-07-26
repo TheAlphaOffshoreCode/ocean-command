@@ -34,6 +34,8 @@ const serverSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
 
   METRICS_TOKEN: z.string().min(16).optional(),
+  /** Protects /api/cron/*. Unset in production means those routes refuse to run. */
+  CRON_SECRET: z.string().min(16).optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 })
 

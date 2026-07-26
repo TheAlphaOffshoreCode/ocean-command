@@ -195,7 +195,11 @@ lost. Recorded in [ADR-006](./adr/006-geospatial.md).
 `VesselPosition` is the only table with unbounded growth: 8 vessels × 1 fix/30 s ≈ 23 k rows/day.
 Mitigations, in order of adoption:
 
-1. Only persist a fix when the vessel moved more than 50 m or 60 s elapsed (Phase 2).
+1. **Implemented in Phase 2, with the rule corrected.** This originally read "moved more than 50 m
+   **or** 60 s elapsed", which reduces nothing: the 60 s branch is true on essentially every poll,
+   so everything gets stored. The implemented rule is 50 m of movement, or a 15-minute heartbeat
+   while the vessel sits still — see `src/lib/domain/vessel/position-recording.ts`. Verified: two
+   back-to-back syncs record no new fixes.
 2. Retention job: raw fixes 30 days, then hourly downsample (Phase 8).
 3. Monthly partitioning if the table passes ~50 M rows (not expected in the demo).
 

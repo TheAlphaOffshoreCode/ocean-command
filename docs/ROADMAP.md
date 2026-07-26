@@ -2,8 +2,9 @@
 
 Legend: ✅ Implemented · 🚧 In Development · 🔜 Planned
 
-**Current state: Phases 0 and 1 complete.** The application runs, four roles sign in, every
-mutation is audited. Operational modules start at phase 2.
+**Current state: Phases 0, 1 and 2 complete.** The application runs, four roles sign in, every
+mutation is audited, and the fleet is visible on a chart with simulated AIS. Operations start at
+phase 3.
 
 ---
 
@@ -98,7 +99,7 @@ because the ESLint toolchain is not built against 7 yet.
 
 ---
 
-## Phase 2 — Fleet Command 🔜
+## Phase 2 — Fleet Command ✅
 
 *"What is happening with my fleet?"*
 
@@ -112,8 +113,39 @@ because the ESLint toolchain is not built against 7 yet.
   `EmptyState` that names the phase that fills them — visible honesty rather than a dead tab.
 * `VesselCard`, `StatusBadge`, `DataTable`, `MapPanel`.
 
-**Acceptance:** 8 seeded vessels appear on the map, positions advance on refresh, every one is
-labelled as simulated, and the map still behaves after 20 minutes open.
+**Acceptance — met, verified against a running instance on 2026-07-26:**
+
+* 8 seeded vessels render in the fleet view; the header reads "6 of 8 vessels reporting", and the
+  two that are not are exactly the ones the domain excludes: OC Guardian (alongside for
+  maintenance) and OC Titan (an FPSO on station).
+* Positions advance between syncs — `-25.13686,-43.37130` → `-25.13649,-43.37029` for OC Atlantic.
+* Every position carries `SIMULATED` in the database and a "Simulated" badge in the UI; six badges
+  for six reporting vessels.
+* The recording rule suppresses redundant history: two back-to-back syncs recorded **0** new fixes
+  while still refreshing the denormalised position.
+* `/api/cron/ais-sync` returns 401 without its token and 200 with it, and refuses to run at all
+  (503) when `CRON_SECRET` is unset in production.
+* 66 tests pass, including a fleet-query isolation suite: another organization sees an empty fleet
+  and cannot open a vessel by id.
+
+**Two defects this phase found, both by exercising it rather than reading it:**
+
+1. The fleet page passed only vessels *with a position*, so the vessel list hid the rest — a hull
+   that had never reported vanished from its own fleet. The map skips them; the list must not.
+2. `shouldRecordFix` had to be written against a corrected rule. DATABASE.md §7 specified "50 m
+   **or** 60 s elapsed", which stores everything, since the 60 s branch is true on every poll. The
+   implemented rule is: 50 m of movement, or a 15-minute heartbeat while stationary.
+
+**Deferred deliberately:** no generic `DataTable` was extracted — one table does not justify the
+abstraction, and inventing it now would mean designing for callers that do not exist. Vessel
+create/edit forms are not built: the actions, validation and audit exist and are tested, but an
+administrator CRUD screen belongs with the admin module, and shipping a form now would mean shipping
+it untested. Clustering waits for a fleet large enough to need it.
+
+**Not verified:** the "still behaves after 20 minutes open" criterion. The map is confined to one
+component, markers are keyed and Leaflet layers are managed by react-leaflet, but a long-running
+soak test needs a browser session — Playwright is phase 10, so this remains an untested claim
+rather than a passed one.
 
 ---
 

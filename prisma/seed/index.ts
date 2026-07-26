@@ -4,6 +4,8 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient, Role } from '@prisma/client'
 import { hash, type Algorithm } from '@node-rs/argon2'
 
+import { seedFleet } from './fleet'
+
 /**
  * Deterministic demo data.
  *
@@ -123,6 +125,8 @@ async function main() {
     passwordHash,
   )
 
+  const fleet = await seedFleet(prisma, demo.id)
+
   const [organizations, users, memberships] = await Promise.all([
     prisma.organization.count(),
     prisma.user.count(),
@@ -130,7 +134,8 @@ async function main() {
   ])
 
   console.log(
-    `Seed complete — ${organizations} organizations, ${users} users, ${memberships} memberships.`,
+    `Seed complete — ${organizations} organizations, ${users} users, ${memberships} memberships, ` +
+      `${fleet.vessels} vessels, ${fleet.locations} locations.`,
   )
   console.log('All seeded records are DEMO data. Sign in with the credentials in the README.')
 }
