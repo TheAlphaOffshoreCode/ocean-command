@@ -54,13 +54,13 @@ jobs:
       - name: Apply migrations
         run: npx prisma migrate deploy
 
+      # Compares the database the migrations just produced against the schema.
+      # A model changed without a migration fails here rather than diverging
+      # quietly until someone deploys. `--exit-code` returns 2 on a difference;
+      # verified locally in both directions, because a check that cannot fail is
+      # not a check.
       - name: Check for schema drift
-        run: |
-          npx prisma migrate diff \
-            --from-migrations prisma/migrations \
-            --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "$DATABASE_URL" \
-            --exit-code && echo "schema and migrations agree"
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
       - run: npm run db:seed
 
