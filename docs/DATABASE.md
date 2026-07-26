@@ -93,19 +93,28 @@ starts with it.
 | Money/hours | `Decimal`, never `Float`. |
 | Deletion | Reference entities (`Vessel`, `Asset`, `User`, `Location`) are archived (`archivedAt`), never deleted — they are referenced by immutable history. Operational records are deleted only by an administrator, and the deletion is audited. |
 | Enums | PostgreSQL native enums via Prisma. Adding a value is a migration, which is the point: statuses are domain decisions. |
+| Denormalised `organizationId` | On the high-volume child tables (`VesselPosition`, `OperationEvent`, `WeatherObservation`, `WeatherForecast`) the column exists **without its own foreign key**. Referential integrity comes from the parent (`vesselId`, `operationId`, `locationId`, all `onDelete: Cascade`); the column is there so the hot indexes can lead with the tenant. Deliberate denormalisation, and the seed asserts it stays consistent with the parent. |
 
 ---
 
 ## 4. Prisma schema (reference)
+
+> **Validated.** The block below was extracted and checked with `prisma@7.9.0 validate` on
+> 2026-07-26: *"The schema at schema.prisma is valid."* It is a reference schema, not a
+> hand-waved sketch — copy it into `prisma/schema.prisma` and it parses.
 
 ```prisma
 generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 7 removed `url` from the datasource block. The connection string is
+// configured in `prisma.config.ts` for Migrate, and passed to PrismaClient as a
+// driver adapter (`@prisma/adapter-pg`) at runtime. Consequence for us: the
+// pooled and direct URLs from SECURITY.md §8 are read by config code we own, so
+// they never appear in the schema.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Tenancy & identity ────────────────────────────────────────────────
@@ -228,15 +237,34 @@ model Vessel {
 }
 
 enum VesselType {
-  AHTS PSV OSRV PLSV RSV DSV CSV FPSO DRILLSHIP TUG SUPPLY_VESSEL SUPPORT_VESSEL
+  AHTS
+  PSV
+  OSRV
+  PLSV
+  RSV
+  DSV
+  CSV
+  FPSO
+  DRILLSHIP
+  TUG
+  SUPPLY_VESSEL
+  SUPPORT_VESSEL
 }
 
 enum VesselStatus {
-  IN_OPERATION IN_TRANSIT STANDBY AT_PORT AVAILABLE MAINTENANCE UNAVAILABLE
+  IN_OPERATION
+  IN_TRANSIT
+  STANDBY
+  AT_PORT
+  AVAILABLE
+  MAINTENANCE
+  UNAVAILABLE
 }
 
 enum DataSource {
-  REAL SIMULATED DEMO
+  REAL
+  SIMULATED
+  DEMO
 }
 
 model VesselPosition {
@@ -280,7 +308,12 @@ model Location {
 }
 
 enum LocationType {
-  FIELD PLATFORM SUBSEA_SITE PORT ANCHORAGE WAYPOINT
+  FIELD
+  PLATFORM
+  SUBSEA_SITE
+  PORT
+  ANCHORAGE
+  WAYPOINT
 }
 
 // ─── Operations ────────────────────────────────────────────────────────
@@ -320,15 +353,34 @@ model Operation {
 }
 
 enum OperationType {
-  ROV_INSPECTION RPAS_INSPECTION CARGO_OPERATION CREW_TRANSFER ANCHOR_HANDLING
-  SUBSEA_INSPECTION SURVEY DIVING_OPERATION MAINTENANCE SUPPLY_OPERATION
+  ROV_INSPECTION
+  RPAS_INSPECTION
+  CARGO_OPERATION
+  CREW_TRANSFER
+  ANCHOR_HANDLING
+  SUBSEA_INSPECTION
+  SURVEY
+  DIVING_OPERATION
+  MAINTENANCE
+  SUPPLY_OPERATION
 }
 
 enum OperationStatus {
-  PLANNED PREPARING READY IN_PROGRESS SUSPENDED COMPLETED CANCELLED
+  PLANNED
+  PREPARING
+  READY
+  IN_PROGRESS
+  SUSPENDED
+  COMPLETED
+  CANCELLED
 }
 
-enum Priority { LOW MEDIUM HIGH CRITICAL }
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
 
 model OperationEvent {
   id             String   @id @default(cuid())
@@ -348,7 +400,12 @@ model OperationEvent {
 }
 
 enum OperationEventType {
-  CREATED STATUS_CHANGED RESCHEDULED NOTE_ADDED WEATHER_HOLD RESOURCE_CHANGED
+  CREATED
+  STATUS_CHANGED
+  RESCHEDULED
+  NOTE_ADDED
+  WEATHER_HOLD
+  RESOURCE_CHANGED
 }
 
 // ─── Environment ───────────────────────────────────────────────────────
@@ -432,6 +489,7 @@ model Risk {
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime @updatedAt @db.Timestamptz(3)
 
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   operation      Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
   vessel         Vessel?    @relation(fields: [vesselId], references: [id], onDelete: SetNull)
   actions        RiskAction[]
@@ -441,9 +499,28 @@ model Risk {
   @@index([organizationId, operationId])
 }
 
-enum RiskCategory { SAFETY ENVIRONMENTAL OPERATIONAL TECHNICAL WEATHER SECURITY REGULATORY }
-enum RiskLevel { LOW MODERATE HIGH CRITICAL }
-enum RiskStatus { OPEN MITIGATING MONITORED CLOSED ACCEPTED }
+enum RiskCategory {
+  SAFETY
+  ENVIRONMENTAL
+  OPERATIONAL
+  TECHNICAL
+  WEATHER
+  SECURITY
+  REGULATORY
+}
+enum RiskLevel {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+enum RiskStatus {
+  OPEN
+  MITIGATING
+  MONITORED
+  CLOSED
+  ACCEPTED
+}
 
 model RiskAction {
   id          String   @id @default(cuid())
@@ -481,6 +558,7 @@ model Alert {
   resolvedBy     String?
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
 
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vessel         Vessel?    @relation(fields: [vesselId], references: [id], onDelete: SetNull)
   operation      Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
   asset          Asset?     @relation(fields: [assetId], references: [id], onDelete: SetNull)
@@ -494,9 +572,27 @@ model Alert {
   // partial unique index. See §5 — Prisma indexes cannot carry a WHERE clause.
 }
 
-enum AlertType { WEATHER VESSEL OPERATION ASSET SAFETY RISK SYSTEM }
-enum AlertSeverity { INFO LOW MEDIUM HIGH CRITICAL }
-enum AlertStatus { UNREAD ACKNOWLEDGED RESOLVED }
+enum AlertType {
+  WEATHER
+  VESSEL
+  OPERATION
+  ASSET
+  SAFETY
+  RISK
+  SYSTEM
+}
+enum AlertSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+enum AlertStatus {
+  UNREAD
+  ACKNOWLEDGED
+  RESOLVED
+}
 
 model AlertEvent {
   id         String   @id @default(cuid())
@@ -511,7 +607,15 @@ model AlertEvent {
   @@index([alertId, occurredAt(sort: Desc)])
 }
 
-enum AlertEventType { RAISED ESCALATED ASSIGNED ACKNOWLEDGED RESOLVED REOPENED COMMENTED }
+enum AlertEventType {
+  RAISED
+  ESCALATED
+  ASSIGNED
+  ACKNOWLEDGED
+  RESOLVED
+  REOPENED
+  COMMENTED
+}
 
 // ─── Assets ────────────────────────────────────────────────────────────
 
@@ -535,6 +639,7 @@ model Asset {
   updatedAt         DateTime @updatedAt @db.Timestamptz(3)
   archivedAt        DateTime? @db.Timestamptz(3)
 
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vessel            Vessel?  @relation(fields: [vesselId], references: [id], onDelete: SetNull)
   maintenance       MaintenanceRecord[]
   alerts            Alert[]
@@ -547,11 +652,31 @@ model Asset {
 }
 
 enum AssetType {
-  CRANE WINCH PROPULSION GENERATOR THRUSTER ROV RPAS
-  COMMUNICATION_SYSTEM NAVIGATION_EQUIPMENT DP_SYSTEM FIRE_SYSTEM OTHER
+  CRANE
+  WINCH
+  PROPULSION
+  GENERATOR
+  THRUSTER
+  ROV
+  RPAS
+  COMMUNICATION_SYSTEM
+  NAVIGATION_EQUIPMENT
+  DP_SYSTEM
+  FIRE_SYSTEM
+  OTHER
 }
-enum AssetStatus { HEALTHY ATTENTION MAINTENANCE_REQUIRED FAILURE }
-enum AssetCriticality { LOW MEDIUM HIGH CRITICAL }
+enum AssetStatus {
+  HEALTHY
+  ATTENTION
+  MAINTENANCE_REQUIRED
+  FAILURE
+}
+enum AssetCriticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
 
 model MaintenanceRecord {
   id          String   @id @default(cuid())
@@ -568,7 +693,12 @@ model MaintenanceRecord {
   @@index([assetId, performedAt(sort: Desc)])
 }
 
-enum MaintenanceType { PREVENTIVE CORRECTIVE INSPECTION OVERHAUL }
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  OVERHAUL
+}
 
 // ─── Incidents ─────────────────────────────────────────────────────────
 
@@ -597,6 +727,7 @@ model Incident {
   investigatorId String?
   closedAt       DateTime? @db.Timestamptz(3)
 
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vessel         Vessel?    @relation(fields: [vesselId], references: [id], onDelete: SetNull)
   operation      Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
   asset          Asset?     @relation(fields: [assetId], references: [id], onDelete: SetNull)
@@ -608,11 +739,32 @@ model Incident {
 }
 
 enum IncidentCategory {
-  PERSONAL_INJURY NEAR_MISS EQUIPMENT_DAMAGE ENVIRONMENTAL_SPILL DROPPED_OBJECT
-  COLLISION FIRE LOSS_OF_POSITION SECURITY PROCESS_SAFETY OTHER
+  PERSONAL_INJURY
+  NEAR_MISS
+  EQUIPMENT_DAMAGE
+  ENVIRONMENTAL_SPILL
+  DROPPED_OBJECT
+  COLLISION
+  FIRE
+  LOSS_OF_POSITION
+  SECURITY
+  PROCESS_SAFETY
+  OTHER
 }
-enum IncidentSeverity { NEGLIGIBLE MINOR MODERATE MAJOR SEVERE }
-enum IncidentStatus { REPORTED UNDER_INVESTIGATION ACTION_REQUIRED RESOLVED CLOSED }
+enum IncidentSeverity {
+  NEGLIGIBLE
+  MINOR
+  MODERATE
+  MAJOR
+  SEVERE
+}
+enum IncidentStatus {
+  REPORTED
+  UNDER_INVESTIGATION
+  ACTION_REQUIRED
+  RESOLVED
+  CLOSED
+}
 
 model IncidentAction {
   id          String   @id @default(cuid())
@@ -643,13 +795,22 @@ model Document {
   validUntil     DateTime? @db.Timestamptz(3)
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
 
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vessel         Vessel?  @relation(fields: [vesselId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, vesselId])
   @@index([organizationId, validUntil])        // expiring certificates
 }
 
-enum DocumentCategory { CERTIFICATE PROCEDURE REPORT DRAWING MANUAL PERMIT OTHER }
+enum DocumentCategory {
+  CERTIFICATE
+  PROCEDURE
+  REPORT
+  DRAWING
+  MANUAL
+  PERMIT
+  OTHER
+}
 
 model AuditLog {
   id             String   @id @default(cuid())

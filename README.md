@@ -123,7 +123,7 @@ real commands, verified, and not before.
 
 From Phase 1 onward, no phase is considered done until all of these pass in CI:
 
-```
+```text
 lint  ·  typecheck  ·  unit + integration tests  ·  build  ·  secret scan
 ```
 

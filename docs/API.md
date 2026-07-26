@@ -38,7 +38,7 @@ Rules:
   depend on the schema's shape, and a Prisma type leaking into a component takes fields with it
   that were never meant to be rendered.
 * Reads are never cached across tenants. Cache tags always include the organization id:
-  `revalidateTag(\`org:${ctx.organizationId}:vessels\`)`.
+  ``revalidateTag(`org:${ctx.organizationId}:vessels`)``.
 * Pagination is mandatory on list queries.
 
 ```ts

@@ -106,7 +106,7 @@ flowchart TB
 
 ### 3.2 The dependency rule
 
-```
+```text
 presentation → application → domain
                     ↓
              infrastructure
@@ -231,7 +231,7 @@ Two scores, one formula family, always returned **with a breakdown**.
 
 **Vessel Readiness Score (VRS), 0–100** — weighted mean of four sub-scores:
 
-```
+```text
 VRS = round(0.30·W + 0.30·A + 0.20·R + 0.20·O)
 ```
 
@@ -256,10 +256,19 @@ status panel: `≥85 Normal`, `70–84 Attention`, `50–69 Warning`, `<50 Criti
 
 Every score returns:
 
+The two scores share the formula machinery but **not** their band vocabulary: a vessel is
+`READY / ATTENTION / RESTRICTED / CRITICAL`, while the organization-level panel reads
+`NORMAL / ATTENTION / WARNING / CRITICAL`. Same numeric cut-offs, different words, because "this
+vessel is restricted" and "the operation is in warning" are different statements. The type is
+generic over the band so neither set can be assigned where the other belongs:
+
 ```ts
-type ScoreBreakdown = {
+type VesselBand = 'READY' | 'ATTENTION' | 'RESTRICTED' | 'CRITICAL'
+type OperationalStatus = 'NORMAL' | 'ATTENTION' | 'WARNING' | 'CRITICAL'
+
+type ScoreBreakdown<Band extends string> = {
   total: number
-  band: 'READY' | 'ATTENTION' | 'RESTRICTED' | 'CRITICAL'
+  band: Band
   degraded: boolean            // some input was missing
   factors: Array<{
     key: 'weather' | 'assets' | 'risks' | 'alerts'
@@ -287,7 +296,7 @@ server-side. Illegal transitions return a typed error; every accepted transition
 
 **Read (Server Component):**
 
-```
+```text
 page.tsx (RSC) → features/x/queries/getX(ctx, params)
                → tenant-scoped Prisma query (+ provider call if external)
                → domain projection (scores, verdicts)
@@ -296,7 +305,7 @@ page.tsx (RSC) → features/x/queries/getX(ctx, params)
 
 **Write (Server Action):**
 
-```
+```text
 client form → server action
   1. getSessionContext()        → { userId, organizationId, role }  — never trust client input
   2. Zod parse of the payload   → typed input or field errors
@@ -420,7 +429,7 @@ written against a concrete implementation.
 
 ## 9. Directory structure
 
-```
+```text
 ocean-command/
 ├── prisma/
 │   ├── schema.prisma
@@ -528,7 +537,7 @@ non-optional** — they are the tests that stop a security regression from shipp
 
 GitHub Actions on every push and PR:
 
-```
+```text
 lint  →  typecheck  →  unit + integration tests (Postgres service container)  →  build
                           ↓
                     secret scan

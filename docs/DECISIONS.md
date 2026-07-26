@@ -91,3 +91,4 @@ or from meaning "next week, out of curiosity".
 | Date | Decision |
 | --- | --- |
 | 2026-07-26 | Phase 0 closed: ADRs 001–007 accepted, reference schema and domain rules specified, roadmap fixed. Project started from scratch — no code or design carried over from any previous attempt. |
+| 2026-07-26 | Reference schema validated with `prisma@7.9.0 validate`. Two consequences worth recording: Prisma 7 **removed `url` from the `datasource` block**, so the connection string moves to `prisma.config.ts` (Migrate) and to a **driver adapter** (`@prisma/adapter-pg` + `pg`) passed to `PrismaClient`; and the schema is verified to parse rather than assumed to. Documenting a schema that does not compile would be the same failure this project criticises elsewhere. |

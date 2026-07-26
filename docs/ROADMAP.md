@@ -152,8 +152,15 @@ an operator can acknowledge it and cannot resolve it.
   where the score becomes real, because assets are its heaviest input.
 * Tests: score formula, band boundaries, degraded input handling.
 
-**Acceptance:** setting a critical asset to `FAILURE` lowers its vessel's readiness score, moves
-its band, and the UI shows exactly which asset caused the drop.
+**Acceptance:** setting a critical asset to `FAILURE` lowers its vessel's readiness score by
+exactly the documented contribution — `severity 25 × criticality 2 = 50` off the asset sub-score,
+which is `0.30 × 50 = 15` points off the total — and the UI names that asset as the cause.
+
+Note the band does **not** necessarily change: a vessel at 100 drops to 85, which is still the
+bottom of `Ready`. That is the formula behaving correctly, not a bug, and the acceptance test
+asserts the arithmetic rather than a band transition. A test that asserted "band moves" would
+either fail honestly or push someone to inflate the asset weight to make it pass — which is how
+a scoring model gets corrupted to satisfy its own test.
 
 ---
 
