@@ -1,74 +1,21 @@
 import 'server-only'
 
-import { Prisma } from '@prisma/client'
-
-import { formatOperationCode } from '@/lib/domain/operation/code'
+import { nextCode } from '@/lib/db/sequence'
 import type { TenantTransaction } from '@/lib/db/with-audit'
 
 /**
- * Allocates the next operation code for the year, atomically.
+ * Allocates the next operation code (OP-2026-0042).
  *
- * The obvious implementation — read `MAX(code)`, increment, retry on conflict —
- * does not survive concurrency. Ten simultaneous creates all read the same
- * maximum, all propose the same sequence, and each retry round only lets one
- * through: the worst case needs as many attempts as there are callers, so it fails
- * precisely when the product is busy. Measured, not assumed: the integration test
- * for ten parallel creates exhausted five retries.
- *
- * A single upsert on a per-(organization, year) counter row does it in one
- * statement. PostgreSQL serialises the concurrent updates on that row, so the
- * lock is as narrow as the problem: creating operations for different
- * organizations, or in different years, never contends.
- *
- * Sequences can show gaps when a transaction takes a code and then rolls back.
- * That is how sequences behave, and a gap is much cheaper than a duplicate.
- *
- * The organization is passed in rather than read back from the client: raw SQL
- * bypasses the tenant extension, which is the point of the escape hatch and also
- * its danger. A first version asked the scoped client for "its" organization —
- * except `Organization` has no organizationId, so the extension does not filter
- * it and the query would happily return somebody else's row. Callers pass
- * ctx.organizationId, which is the only trustworthy source.
+ * The allocation itself lives in lib/db/sequence, shared with alerts and, later,
+ * incidents — the concurrency argument is the same everywhere and worth having in
+ * exactly one place.
  */
-export async function nextOperationCode(
+export function nextOperationCode(
   tx: TenantTransaction,
   organizationId: string,
   year: number,
 ): Promise<string> {
-  // The seed writes OP-2026-0001..0020 directly, a restored backup arrives with
-  // codes already in it, and neither touches this counter. So the *first*
-  // allocation for an (organization, year) starts from the highest code that
-  // already exists rather than from 1 — otherwise the first operation created
-  // through the product collides with seeded data and burns its retries.
-  // Every allocation after that is a pure atomic increment.
-  const codePrefix = `OP-${year}-`
-
-  const rows = await tx.$queryRaw<Array<{ lastSequence: number }>>(Prisma.sql`
-    INSERT INTO "OperationCounter" ("organizationId", "year", "lastSequence")
-    VALUES (
-      ${organizationId},
-      ${year},
-      COALESCE(
-        (
-          SELECT MAX(NULLIF(regexp_replace("code", '^OP-[0-9]{4}-', ''), '')::int)
-          FROM "Operation"
-          WHERE "organizationId" = ${organizationId}
-            AND "code" LIKE ${`${codePrefix}%`}
-        ),
-        0
-      ) + 1
-    )
-    ON CONFLICT ("organizationId", "year")
-    DO UPDATE SET "lastSequence" = "OperationCounter"."lastSequence" + 1
-    RETURNING "lastSequence"
-  `)
-
-  const sequence = rows[0]?.lastSequence
-  if (sequence === undefined) {
-    throw new Error('Operation code allocation returned no sequence')
-  }
-
-  return formatOperationCode(year, sequence)
+  return nextCode(tx, organizationId, 'OPERATION', year)
 }
 
 const MAX_ATTEMPTS = 3
@@ -76,9 +23,9 @@ const MAX_ATTEMPTS = 3
 /**
  * Retries a create whose code lost a race.
  *
- * With the counter above this should never fire. It stays as a backstop for the
- * case the counter cannot cover: a code inserted by hand, a restored backup, a
- * migration that seeded rows without touching the counter.
+ * With the counter this should never fire. It stays as a backstop for what the
+ * counter cannot cover: a code inserted by hand, or a restored backup whose
+ * counter row did not come with it.
  */
 export async function withUniqueCodeRetry<T>(
   attempt: (attemptNumber: number) => Promise<T>,

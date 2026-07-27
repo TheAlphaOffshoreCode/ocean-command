@@ -135,22 +135,27 @@ enum Role {
   VIEWER
 }
 
-/// Atomic allocation of human-readable operation codes.
+/// Atomic allocation of human-readable codes: OP-2026-0042, ALT-2026-0007, and so on.
 ///
 /// Reading MAX(code) and retrying on conflict does not survive concurrency: with
 /// N simultaneous callers the worst case needs N attempts, so it fails exactly
-/// when the product is busy. One row per (organization, year), incremented with a
-/// single upsert, serialises only the allocation — which is the narrowest lock
-/// that solves it.
+/// when the product is busy. One row per (organization, kind, year), incremented
+/// with a single upsert, serialises only the allocation — the narrowest lock that
+/// solves it, and different kinds or years never contend.
+///
+/// `kind` is what keeps this one table instead of three near-identical ones as
+/// alerts, incidents and risks each grow their own code.
 ///
 /// Sequences may show gaps when a transaction allocates a code and then rolls
 /// back. That is normal for a sequence and preferable to a duplicate.
-model OperationCounter {
+model SequenceCounter {
   organizationId String
+  /// OPERATION | ALERT | RISK | INCIDENT
+  kind           String
   year           Int
   lastSequence   Int    @default(0)
 
-  @@id([organizationId, year])
+  @@id([organizationId, kind, year])
 }
 
 // ─── Fleet ─────────────────────────────────────────────────────────────────

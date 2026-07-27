@@ -10,27 +10,29 @@ down and testable.
 
 ## Current state — read this first
 
-**Phases 0 to 4 are complete.** You can run the application, sign in as any of four roles, watch the
-fleet on a chart with simulated AIS, move operations through an enforced lifecycle, and read **real**
-weather from Open-Meteo turned into per-operation-type window verdicts. Risk, alerts, assets and
-incidents are **not built yet** — phases 5 to 8.
+**Phases 0 to 5 are complete.** You can run the application, sign in as any of four roles, watch the
+fleet on a chart with simulated AIS, move operations through an enforced lifecycle, read **real**
+weather turned into per-operation-type window verdicts, and work a 5×5 risk matrix and an alert panel
+that deduplicates itself. Assets, incidents and analytics are **not built yet** — phases 6 to 8.
 
 | Capability | Status |
 | --- | --- |
 | Architecture, domain model, decision rules, threat model | ✅ [docs/](docs/) |
-| PostgreSQL schema — 25 tables, 3 migrations, CHECK constraints, partial unique index | ✅ |
+| PostgreSQL schema — 25 tables, 4 migrations, CHECK constraints, partial unique index | ✅ |
 | Authentication — e-mail/password, Argon2id, database sessions, rate limiting | ✅ |
 | RBAC — 4 roles, 36 permissions, one matrix, checked server-side | ✅ |
 | Multi-tenancy — `TenantContext` required by every data access | ✅ |
 | Audit trail — written inside the mutation's transaction | ✅ |
 | Application shell — navigation filtered by role, `DEMO DATA` marker | ✅ |
-| Deterministic idempotent seed — 2 organizations, 4 roles, 8 vessels, 6 locations | ✅ |
+| Deterministic idempotent seed — 2 organizations, 4 roles, 8 vessels, 6 locations, 20 operations, 15 risks | ✅ |
 | **Fleet Command** — chart, vessel list, side panel, vessel detail with tabs | ✅ |
 | **Simulated AIS** — deterministic provider, position history, scheduled refresh | ✅ |
 | **Operations Center** — enforced lifecycle, plan vs. actual timeline, activity feed | ✅ |
 | **Vessel double-booking refused** with the conflicting operation named | ✅ |
 | **Environmental Intelligence** — real Open-Meteo data, window verdicts per operation type | ✅ |
-| Risk, alerts, assets, incidents, analytics | 🔜 Phases 5–8 |
+| **Risk Center** — 5×5 matrix with drill-down, register sorted worst-first, configurable bands | ✅ |
+| **Alert Center** — rules that raise, escalate and auto-resolve; acknowledge ≠ resolve | ✅ |
+| Assets, incidents, analytics | 🔜 Phases 6–8 |
 | Ocean AI | 🔜 Phase 9 |
 | E2E tests, metrics, deployment | 🔜 Phase 10 |
 
@@ -43,11 +45,11 @@ light, because three of the four inputs to that score do not exist before phase 
 ```text
 lint       ✓ no errors
 typecheck  ✓ no errors
-test       ✓ 163 passed (16 files)
-build      ✓ 13 routes
+test       ✓ 214 passed (19 files)
+build      ✓ 16 routes
 ```
 
-Against a real PostgreSQL 17: all three migrations apply to an empty database, all 10 CHECK
+Against a real PostgreSQL 17: all four migrations apply to an empty database, all 10 CHECK
 constraints and the partial unique index exist, and the seed is idempotent.
 
 An operation walks Planned → Preparing → Ready → In Progress → Completed with the actual start
@@ -69,6 +71,10 @@ A live weather refresh stored **6 observations and 288 forecast hours** from Ope
 `REAL`. Raising the wind at one location to 31 kn turns that location's cargo operation from
 *Favorable* to **Unsafe — "Wind 31 kn against limit 28 kn"**, and the panel adds when the window
 reopens.
+
+Running the alert rules twice in a row raises **11 alerts, then 0** — the deduplication working. The
+test suite runs them 96 times (a full day at fifteen-minute cadence) and asserts the same. An Operator
+sees *Acknowledge* and no *Resolve*; a Manager sees both; a Viewer sees neither.
 
 ---
 
@@ -205,6 +211,10 @@ Weather works the same way — **Refresh** on the Weather page, or
 default; set `WEATHER_PROVIDER=mock` to work offline. Tests and CI always use the mock, so neither
 depends on a third party being up.
 
+Alerts are produced by rules over that state: **Re-evaluate rules** on the Alerts page, or
+`POST /api/cron/evaluate-alerts`. Safe to run every fifteen minutes — an ongoing condition updates its
+existing alert and a cleared one resolves itself, so repetition does not multiply alerts.
+
 ## Quality gate
 
 No phase is considered done until all of these pass in CI:
@@ -231,7 +241,7 @@ deletable.
 ## Roadmap
 
 Phase 0 Architecture ✅ · 1 Foundation ✅ · 2 Fleet Command ✅ · 3 Operations ✅ · 4 Environmental
-Intelligence ✅ · 5 Risk & Alerts · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
+Intelligence ✅ · 5 Risk & Alerts ✅ · 6 Asset Monitoring · 7 Incidents · 8 Analytics & Command Center ·
 9 Ocean AI · 10 Production Readiness.
 
 Details and acceptance criteria per phase: [ROADMAP.md](docs/ROADMAP.md).

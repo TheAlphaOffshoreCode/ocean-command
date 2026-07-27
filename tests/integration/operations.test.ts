@@ -48,7 +48,7 @@ describe('operations', async () => {
       await testDb.operation.deleteMany({ where: { code: { startsWith: 'OP-2031-' } } })
       // Reset the counter too, so the sequence assertion does not depend on
       // whether this file ran before.
-      await testDb.operationCounter.deleteMany({ where: { year: 2031 } })
+      await testDb.sequenceCounter.deleteMany({ where: { year: 2031 } })
     })
 
     afterAll(() => testDb.$disconnect())
@@ -124,7 +124,7 @@ describe('operations', async () => {
       // was handled, the first operation created through the product asked for
       // sequence 1, collided with seeded data, and burned its retries.
       const year = 2033
-      await testDb.operationCounter.deleteMany({ where: { year } })
+      await testDb.sequenceCounter.deleteMany({ where: { year } })
 
       await forTenant(demo).operation.create({
         data: {
@@ -150,7 +150,7 @@ describe('operations', async () => {
         expect(next).toBe(`OP-${year}-0042`)
       } finally {
         await testDb.operation.deleteMany({ where: { code: { startsWith: `OP-${year}-` } } })
-        await testDb.operationCounter.deleteMany({ where: { year } })
+        await testDb.sequenceCounter.deleteMany({ where: { year } })
       }
     })
 

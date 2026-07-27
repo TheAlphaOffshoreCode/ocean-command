@@ -28,7 +28,10 @@ export type NavItem = {
   icon: LucideIcon
   permission: Permission
   question: string
-} & ({ href: '/command-center' | '/fleet' | '/operations' | '/weather' } | { phase: number })
+} & (
+  | { href: '/command-center' | '/fleet' | '/operations' | '/weather' | '/risk' | '/alerts' }
+  | { phase: number }
+)
 
 export const NAVIGATION: NavItem[] = [
   {
@@ -64,14 +67,14 @@ export const NAVIGATION: NavItem[] = [
     icon: ShieldAlert,
     permission: 'risk:read',
     question: 'What could go wrong?',
-    phase: 5,
+    href: '/risk',
   },
   {
     label: 'Alerts',
     icon: Siren,
     permission: 'alert:read',
     question: 'What requires action?',
-    phase: 5,
+    href: '/alerts',
   },
   {
     label: 'Assets',

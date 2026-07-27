@@ -2,9 +2,10 @@
 
 Legend: ✅ Implemented · 🚧 In Development · 🔜 Planned
 
-**Current state: Phases 0 to 4 complete.** The application runs, four roles sign in, every mutation
-is audited, the fleet is on a chart with simulated AIS, operations move through an enforced lifecycle,
-and **real** weather from Open-Meteo drives per-operation-type window verdicts. Risk starts at phase 5.
+**Current state: Phases 0 to 5 complete.** The application runs, four roles sign in, every mutation is
+audited, the fleet is on a chart with simulated AIS, operations move through an enforced lifecycle,
+real weather drives per-operation-type window verdicts, and a 5×5 risk matrix plus a deduplicating
+alert engine turn all of it into things that need action. Assets start at phase 6.
 
 ---
 
@@ -258,7 +259,7 @@ a full grid of types against hours belongs with the analytics views in phase 8.
 
 ---
 
-## Phase 5 — Risk & Alerts 🔜
+## Phase 5 — Risk & Alerts ✅
 
 *"What could go wrong?" and "What needs action?"*
 
@@ -272,8 +273,39 @@ a full grid of types against hours belongs with the analytics views in phase 8.
 * Tests: matrix boundaries (4/5, 9/10, 16/17), deduplication under repeated evaluation, RBAC on
   acknowledge vs. resolve.
 
-**Acceptance:** an evaluation loop that runs 96 times produces one open weather alert, not 96;
-an operator can acknowledge it and cannot resolve it.
+**Acceptance — met, verified in tests and against a running instance on 2026-07-26:**
+
+* **96 evaluations, no duplicates.** The integration test runs the rules 96 times — a full day at
+  fifteen-minute cadence — and asserts every run after the first raises zero. Live, two consecutive
+  calls to `/api/cron/evaluate-alerts` returned `raised: 11` then `raised: 0`.
+* **Acknowledge is not resolve.** Rendered for each role: an Operator sees *Acknowledge* and no
+  *Resolve*, a Manager sees both, a Viewer sees neither — and the action re-checks the permission
+  server-side, so the buttons are a reflection, not the control.
+* Alerts carry their reason. With live Open-Meteo data: *"Weather marginal for OP-2026-0009 — Wave
+  height 1.7m against a marginal limit of 1.5m"*.
+* The risk matrix renders with bands `low ≤ 4, moderate ≤ 9, high ≤ 16`, the register sorts
+  worst-first, and the shell badge reads 18 open / 3 critical.
+* 214 tests, stable across three consecutive runs.
+
+**Two things worth recording.**
+
+The alert rules **auto-resolve**, not just raise. A condition that clears closes its alert with a note
+saying why. Without that, the panel fills with conditions that ended yesterday — the same noise
+problem the deduplication solves, arriving from the other direction.
+
+`OperationCounter` became `SequenceCounter` with a `kind` column, so alerts (and incidents in phase 7)
+share the atomic allocator instead of copying its concurrency argument into new tables. The migration
+carries existing rows over rather than dropping them: the operation sequence had to continue where it
+left off, or the next created operation would collide.
+
+**Three test defects fixed along the way**, all of the same family — tests that mutate seeded data:
+one left a risk escalated (the risk page showed three criticals where the seed has one), one closed
+every risk and reopened them all, turning the seed's `CLOSED` and `ACCEPTED` rows into `OPEN`, and one
+matched an alert on the wrong field. The second made a later test pass or fail depending on run order,
+which is worse than a plain failure.
+
+**Deferred:** risk create/edit forms and alert assignment UI. The engine, the actions, the lifecycle
+and the audit exist and are tested; the forms belong with the admin module.
 
 ---
 

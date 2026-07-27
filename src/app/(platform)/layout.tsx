@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Waves } from 'lucide-react'
 
 import { UserMenu } from '@/components/shell/user-menu'
+import { countAlerts } from '@/features/alerts/queries/list-alerts'
 import { NAVIGATION } from '@/config/navigation'
 import { can } from '@/lib/auth/authorize'
 import { requireTenantContext } from '@/lib/auth/tenant-context'
@@ -15,6 +16,12 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   // This only *reflects* authorization — every action is checked again on the
   // server, because a hidden button stops nobody who can type a URL.
   const items = NAVIGATION.filter((item) => can(ctx, item.permission))
+
+  // Counting query, not a list: the badge is on every page in the product, so it
+  // must never become the reason a page is slow.
+  const alerts = can(ctx, 'alert:read')
+    ? await countAlerts(ctx)
+    : { open: 0, unread: 0, critical: 0, high: 0 }
 
   return (
     <div className="min-h-dvh">
@@ -69,6 +76,21 @@ export default async function PlatformLayout({ children }: { children: React.Rea
                     >
                       <Icon className="size-4 shrink-0" aria-hidden />
                       {item.label}
+                      {item.label === 'Alerts' && alerts.open > 0 ? (
+                        <span
+                          className={cn(
+                            'numeric ml-auto rounded px-1.5 text-[10px] font-semibold',
+                            alerts.critical > 0
+                              ? 'bg-critical-soft text-critical'
+                              : 'bg-attention-soft text-attention',
+                          )}
+                          // The count an operator acts on is the open one; critical
+                          // colours it rather than adding a second number.
+                          title={`${alerts.open} open, ${alerts.critical} critical`}
+                        >
+                          {alerts.open}
+                        </span>
+                      ) : null}
                     </Link>
                   ) : (
                     <span

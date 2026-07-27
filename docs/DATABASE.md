@@ -1,7 +1,7 @@
 # Ocean Command — Domain and Data Model
 
-> Status: **Phase 1 — applied.** The schema lives in
-> [`prisma/schema.prisma`](../prisma/schema.prisma) and is applied by two migrations. This document
+> Status: **applied through phase 5.** The schema lives in
+> [`prisma/schema.prisma`](../prisma/schema.prisma) and is applied by four migrations. This document
 > explains the model and the decisions behind it; the file is the source of truth.
 
 ---
@@ -88,7 +88,7 @@ starts with it.
 | Concern | Decision |
 | --- | --- |
 | Primary keys | `cuid()` — collision-safe, generatable client-side, no sequence leakage of tenant volume. |
-| Human codes | `OP-2026-0042`, `RSK-0104`, `INC-2026-0007`, `ALT-…` — generated per organization per year; what people say on the radio. Unique per organization. |
+| Human codes | `OP-2026-0042`, `ALT-2026-0007`, `RSK-2026-0003`, `INC-2026-0001` — one shape, allocated per organization per year by `SequenceCounter` (§4.3); what people say on the radio. Unique per organization. |
 | Timestamps | `DateTime @db.Timestamptz(3)`, always UTC. Rendered in the organization's timezone. |
 | Coordinates | `Decimal @db.Decimal(9,6)` (≈0.1 m precision). Not `Float` — rounding drift in stored positions is a real defect. |
 | Money/hours | `Decimal`, never `Float`. |
@@ -136,14 +136,18 @@ The registry in `src/lib/db/tenant.ts` is checked against this schema by
 `tests/unit/tenant-models.test.ts`, which parses the file and fails if a model with an
 `organizationId` column is not registered for scoping. That test found `Membership` missing.
 
-### 4.3 OperationCounter
+### 4.3 SequenceCounter
 
-Human-readable codes (`OP-2026-0042`) are allocated from one row per (organization, year),
-incremented by a single upsert. The obvious alternative — read `MAX(code)`, increment, retry on
+Human-readable codes (`OP-2026-0042`, `ALT-2026-0007`, `RSK-2026-0003`) are allocated from one row per
+(organization, kind, year), incremented by a single upsert. The obvious alternative — read `MAX(code)`, increment, retry on
 conflict — was implemented first and **failed a ten-way concurrency test**: every retry round only
 lets one caller through, so the worst case needs as many attempts as there are callers, and it breaks
 exactly when the product is busy. Sequences may show gaps when a transaction takes a code and rolls
 back; a gap is much cheaper than a duplicate.
+
+`kind` is what keeps this one table instead of three near-identical ones — three places to get the
+same concurrency argument wrong. It started as `OperationCounter` in phase 3 and was generalised in
+phase 5, with the existing rows carried across so the operation sequence continued where it left off.
 
 ### 4.4 Denormalised last position
 

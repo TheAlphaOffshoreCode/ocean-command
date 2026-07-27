@@ -6,6 +6,7 @@ import { hash, type Algorithm } from '@node-rs/argon2'
 
 import { seedFleet } from './fleet'
 import { seedOperations } from './operations'
+import { seedRisks } from './risks'
 
 /**
  * Deterministic demo data.
@@ -128,6 +129,7 @@ async function main() {
 
   const fleet = await seedFleet(prisma, demo.id)
   const operations = await seedOperations(prisma, demo.id)
+  const risks = await seedRisks(prisma, demo.id)
 
   const [organizations, users, memberships] = await Promise.all([
     prisma.organization.count(),
@@ -137,7 +139,8 @@ async function main() {
 
   console.log(
     `Seed complete — ${organizations} organizations, ${users} users, ${memberships} memberships, ` +
-      `${fleet.vessels} vessels, ${fleet.locations} locations, ${operations.operations} operations.`,
+      `${fleet.vessels} vessels, ${fleet.locations} locations, ${operations.operations} operations, ` +
+      `${risks.risks} risks.`,
   )
   console.log('All seeded records are DEMO data. Sign in with the credentials in the README.')
 }
