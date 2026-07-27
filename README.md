@@ -38,7 +38,9 @@ that deduplicates itself. Assets, incidents and analytics are **not built yet** 
 
 Nothing is described as working unless this table says it is, and the Command Center says the same
 thing on screen: its Operational Status panel reports **"not computable yet"** rather than a green
-light, because three of the four inputs to that score do not exist before phase 6.
+light. Three of the score's four inputs now exist — weather, open risks and unresolved alerts — but
+asset health arrives in phase 6, and a readiness score missing a quarter of its formula is a number
+that would be trusted without deserving it.
 
 ### Verified on 2026-07-26
 

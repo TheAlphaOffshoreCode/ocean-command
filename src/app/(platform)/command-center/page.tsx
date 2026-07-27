@@ -38,18 +38,20 @@ export default async function CommandCenterPage() {
         />
         <PanelBody>
           {/*
-            No status is claimed, because none of its four inputs exists yet.
-            Rendering a green "Normal" here would be the most damaging lie this
-            product could tell: it is exactly the panel someone would trust.
+            Three of the four inputs exist now (weather, risks, alerts); asset
+            health lands in phase 6. Still no status is claimed: a readiness score
+            missing a quarter of its formula is exactly the number someone would
+            trust without it deserving to be trusted.
           */}
           <div className="flex items-start gap-3">
             <CircleDot className="text-ink-faint mt-0.5 size-5 shrink-0" aria-hidden />
             <div>
               <p className="text-ink text-sm font-medium">Not computable yet</p>
               <p className="text-ink-muted mt-1 max-w-2xl text-xs">
-                The readiness formula needs weather (phase 4), open risks and alerts (phase 5) and
-                asset health (phase 6). Until those exist, this panel reports that it cannot
-                measure, rather than showing a reassuring status nobody computed.
+                Weather, open risks and unresolved alerts are all in place. The last input — asset
+                health — arrives in phase 6, and the score is only shown once every factor behind it
+                is real. Until then this panel says it cannot measure, rather than showing a
+                reassuring status nobody computed.
               </p>
             </div>
           </div>

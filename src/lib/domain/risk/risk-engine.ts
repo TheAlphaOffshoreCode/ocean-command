@@ -102,14 +102,6 @@ export function scoreRisk(
   }
 }
 
-/** Every cell of the matrix, for rendering the grid. */
-export function riskMatrix(bands: RiskBands = DEFAULT_RISK_BANDS): ScoredRisk[][] {
-  // Probability descends down the rows, the way a matrix is drawn on a wall.
-  return Array.from({ length: 5 }, (_, row) =>
-    Array.from({ length: 5 }, (_, column) => scoreRisk(5 - row, column + 1, bands)),
-  )
-}
-
 const LEVEL_ORDER: Record<RiskLevel, number> = {
   LOW: 0,
   MODERATE: 1,
@@ -117,11 +109,7 @@ const LEVEL_ORDER: Record<RiskLevel, number> = {
   CRITICAL: 3,
 }
 
-/** Highest level first — a register is read worst-first. */
-export function compareByLevel(a: RiskLevel, b: RiskLevel): number {
-  return LEVEL_ORDER[b] - LEVEL_ORDER[a]
-}
-
+/** Lets a filter ask for "high and above" without hard-coding the order twice. */
 export function isAtLeast(level: RiskLevel, minimum: RiskLevel): boolean {
   return LEVEL_ORDER[level] >= LEVEL_ORDER[minimum]
 }

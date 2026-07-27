@@ -63,10 +63,6 @@ const SEVERITY_ORDER: Record<AlertSeverity, number> = {
   CRITICAL: 4,
 }
 
-export function compareBySeverity(a: AlertSeverity, b: AlertSeverity): number {
-  return SEVERITY_ORDER[b] - SEVERITY_ORDER[a]
-}
-
 export function isAtLeastSeverity(severity: AlertSeverity, minimum: AlertSeverity): boolean {
   return SEVERITY_ORDER[severity] >= SEVERITY_ORDER[minimum]
 }

@@ -4,12 +4,7 @@ import type { Prisma, RiskCategory, RiskLevel, RiskStatus } from '@prisma/client
 
 import type { TenantContext } from '@/lib/auth/tenant-context'
 import { forTenant } from '@/lib/db/tenant'
-import {
-  DEFAULT_RISK_BANDS,
-  levelFor,
-  type RiskBands,
-  type ScoredRisk,
-} from '@/lib/domain/risk/risk-engine'
+import { DEFAULT_RISK_BANDS, levelFor, type RiskBands } from '@/lib/domain/risk/risk-engine'
 
 export type RiskListItem = {
   id: string
@@ -112,7 +107,18 @@ export async function listRisks(
   }))
 }
 
-export type MatrixCell = ScoredRisk & { risks: RiskListItem[] }
+/**
+ * A cell of the grid. Deliberately not a ScoredRisk: that type carries the
+ * human-readable axis labels, and an earlier version satisfied it by filling them
+ * with empty strings — a type the value does not really have.
+ */
+export type MatrixCell = {
+  probability: number
+  impact: number
+  score: number
+  level: RiskLevel
+  risks: RiskListItem[]
+}
 
 /**
  * The 5×5 grid with the register's risks placed in their cells.
@@ -134,11 +140,7 @@ export function buildMatrix(risks: RiskListItem[], bands: RiskBands): MatrixCell
         impact,
         score,
         level: levelFor(score, bands),
-        probabilityLabel: '',
-        impactLabel: '',
-        risks: risks.filter(
-          (risk) => risk.probability === probability && risk.impact === impact,
-        ),
+        risks: risks.filter((risk) => risk.probability === probability && risk.impact === impact),
       }
     })
   })
