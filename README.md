@@ -1,10 +1,19 @@
+<div align="center">
+
 # Ocean Command
 
-**Offshore Operations Intelligence Platform**
+**An offshore operations command centre — where every verdict shows its evidence.**
 
-A digital command center for offshore operations: vessels, operations, environmental conditions,
-assets, risks, alerts and incidents in one operational picture, with the decision rules written
-down and testable.
+Vessels, operations, environmental conditions, assets, risks, alerts and incidents in one
+operational picture. The decision rules are **written down and testable**, and no number reaches
+the screen without the reason behind it.
+
+[![CI](https://github.com/TheAlphaOffshoreCode/ocean-command/actions/workflows/ci.yml/badge.svg)](https://github.com/TheAlphaOffshoreCode/ocean-command/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](./tsconfig.json)
+[![Phase](https://img.shields.io/badge/phases-0--5%20complete-brightgreen.svg)](./docs/ROADMAP.md)
+
+</div>
 
 ---
 
